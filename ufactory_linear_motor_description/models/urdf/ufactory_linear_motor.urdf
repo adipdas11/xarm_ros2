@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<robot name="ufactory_linear_motor">
+
+  <!-- Materials -->
+<material name="white">
+    <color rgba="1.000 1.000 1.000 1.000"/>
+  </material>
+
+  <material name="black">
+    <color rgba="0.000 0.000 0.000 1.000"/>
+  </material>
+
+  <!-- Base Link -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="-0.01124442410905712 -0.053611892391058985 0.027504113501011136" rpy="0 0 0"/>
+      <mass value="38.167165545855056"/>
+      <inertia
+        ixx="4.03214" iyy="0.12523" izz="4.112446"
+        ixy="-0.033101" iyz="0.032219" ixz="0.004374"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ufactory_linear_motor_description/models/meshes/base_link.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ufactory_linear_motor_description/models/meshes/base_link.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Moving Carriage -->
+  <link name="robot_base_1">
+    <inertial>
+      <origin xyz="0.04223730861365587 0.08003082547931334 0.01607905560708714" rpy="0 0 0"/>
+      <mass value="8.788079551534963"/>
+      <inertia
+        ixx="0.023497" iyy="0.022264" izz="0.03835"
+        ixy="0.000234" iyz="0.000477" ixz="0.000414"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.043 0.42 -0.048" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ufactory_linear_motor_description/models/meshes/robot_base_1.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <origin xyz="0.043 0.42 -0.048" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ufactory_linear_motor_description/models/meshes/robot_base_1.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Slider Joint -->
+  <joint name="slider_joint" type="prismatic">
+    <origin xyz="-0.043 -0.42 0.048" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="robot_base_1"/>
+    <axis xyz="0.0 -1.0 0.0"/>
+    <limit lower="-0.7" upper="0.0" effort="100" velocity="100"/>
+  </joint>
+
+  <!-- Transmission (for ROS 2 control) -->
+  <transmission name="slider_joint_tran">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="slider_joint">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="slider_joint_actr">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+  <!-- Gazebo Plugins & Parameters -->
+  <gazebo>
+    <plugin name="control" filename="libgazebo_ros_control.so"/>
+  </gazebo>
+
+  <gazebo reference="base_link">
+    <material>Gazebo/Silver</material>
+    <mu1>0.2</mu1>
+    <mu2>0.2</mu2>
+    <selfCollide>true</selfCollide>
+    <gravity>true</gravity>
+  </gazebo>
+
+  <gazebo reference="robot_base_1">
+    <material>Gazebo/Silver</material>
+    <mu1>0.2</mu1>
+    <mu2>0.2</mu2>
+    <selfCollide>true</selfCollide>
+  </gazebo>
+
+</robot>

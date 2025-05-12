@@ -1,0 +1,8 @@
+.vscode/
+log
+.idea/
+*bak/
+ignore_*
+**/old
+*.py[cod]
+files__pycache__/

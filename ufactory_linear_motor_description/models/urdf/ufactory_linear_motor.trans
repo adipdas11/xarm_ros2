@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<robot name="ufactory_linear_motor" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+<transmission name="slider_joint_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="slider_joint">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="slider_joint_actr">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+</robot>
