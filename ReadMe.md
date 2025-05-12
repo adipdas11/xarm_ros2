@@ -20,8 +20,8 @@ This repository provides instructions to set up a ROS2 workspace for the xArm ma
 - `git`, `colcon`, `vcs`, and ROS2 dependencies (`rosdep`).
 - Appropriate permissions to install packages (`sudo` access).
 
-<details>
-<summary id="create-workspace">🔧 Create Workspace</summary>
+
+### 🔧 Create Workspace
 
 ```bash
 # Skip this step if you already have a target workspace
@@ -30,20 +30,15 @@ mkdir -p dev_ws/src
 cd ~/dev_ws/src
 ```
 
-</details>
-
-<details>
-<summary id="clone-repositories">📂 Clone Repositories</summary>
+### 📂 Clone Repositories
 
 ```bash
 # Change the branch as required
-git clone https://github.com/adipdas11/xarm_ros2.git
+git clone https://github.com/rahul-theroboticist/Demo-2_vision-based-sorting.git --branch small
 ```
 
-</details>
 
-<details>
-<summary id="build-workspace">⚙️ Build Workspace</summary>
+### ⚙️ Build Workspace
 
 ```bash
 cd ~/dev_ws
@@ -51,8 +46,6 @@ sudo apt update
 rosdep install -r --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
 colcon build --mixin release
 ```
-
-</details>
 
 </details>
 
@@ -96,9 +89,6 @@ pip3 install xarm-python-sdk
 
 
 ## Setup ISAAC Sim
-
-<details>
-<summary id="nvidia-isaacsim-setup">🤖 NVIDIA Isaac Sim Setup</summary>
 
 <details>
 <summary id="setup-isaacsim-assets">⚙️ Setup NVIDIA Isaac Sim Assets Properly</summary>
@@ -152,8 +142,6 @@ Once Isaac Sim is loaded, open the Assets browser, navigate to your projects fol
 ```
 isaac_assets/models/Assembly_Models/ufrobots_RAS_Scene/ufrobots_RAS_Scene.usd
 ```
-
-</details>
 
 </details>
 
