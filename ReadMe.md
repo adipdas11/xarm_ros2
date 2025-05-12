@@ -36,9 +36,6 @@ This repository provides instructions to set up a ROS2 workspace for the xArm ma
 
 ```bash
 # Skip this step if you already have a target workspace
-dev_ws/src directory structure
-```
-```bash
 cd ~
 mkdir -p dev_ws/src
 cd ~/dev_ws/src
