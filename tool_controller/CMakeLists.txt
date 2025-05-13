@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(xarm_isaac_joint_states)
+project(tool_controller)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -14,11 +14,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
 
 install(PROGRAMS
-
-  scripts/ras_collision.py
-  scripts/xarm5_slider_isaac_joint_states.py
-  scripts/dual_xarm5_uf850_isaac_joint_states.py
-
+  scripts/tool_control.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

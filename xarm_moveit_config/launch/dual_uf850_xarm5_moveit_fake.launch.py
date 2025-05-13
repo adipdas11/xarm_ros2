@@ -16,15 +16,10 @@ from launch_ros.actions import Node
 def generate_launch_description():
     hw_ns = LaunchConfiguration('hw_ns', default='ufactory')
     
-    slider_tf_node = Node(
-        package='ufactory_linear_motor_description',
-        executable='linear_motor_tf.py',
-        output='screen'
-    )
     
-    slider_control_node = Node(
-        package='ufactory_linear_motor_description',
-        executable='linear_service_control.py',
+    isaac_sim_joint_states = Node(
+        package='xarm_isaac_joint_states',
+        executable='dual_xarm5_uf850_isaac_joint_states.py',
         output='screen'
     )
     
@@ -44,6 +39,8 @@ def generate_launch_description():
             'attach_to_2': 'world',
             'attach_xyz_2': '0 1 0',
             'attach_rpy_2': '0 0 0',
+            'add_gripper_2': 'true',
+            'add_realsense_d435i_2': 'true',
             
             'hw_ns': hw_ns,
             'no_gui_ctrl': 'true',
@@ -51,5 +48,6 @@ def generate_launch_description():
     )
     
     return LaunchDescription([
-        robot_moveit_fake_launch
+        robot_moveit_fake_launch,
+        isaac_sim_joint_states
     ])

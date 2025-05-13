@@ -239,19 +239,23 @@ Below are the primary ROS2 services for controlling the xArm manipulator and its
 
 </details>
 
-## Demo 2 (Aruco based pick and place using xArm5 and xArm gripper) 
+## Control screw tool
 
 <details>
-<summary id="command-lines-for-running-them-individually">🏃‍♂️ Command Lines for Running Demo2 (Aruco based pick and place using xArm5 and xArm gripper) Individually</summary>
+<summary id="screw-control">🏃 Controlling Screw Driver package</summary>
+
+1. Commands: Screw (1), Unscrew (-1), Stop (0)
 
 ```bash
-ros2 launch realsense2_camera rs_launch.py depth_module.depth_profile:=1280x720x30 pointcloud.enable:=true
+ros2 launch tool_controller tool_control.launch.py
+```
 
-ros2 run xarm5_vision_pick_place aruco_cube_detection.py --ros-args -p mode:=real 
+2. Publishing command to topic
 
-ros2 launch xarm_moveit_config xarm5_linear_moveit_realmove.launch.py  robot_ip:=192.168.1.239
-
-ros2 run xarm5_vision_pick_place aruco_pick_place.py
+```bash
+ros2 topic pub /tool_cmd std_msgs/msg/Int8 '{data: 1}'
+ros2 topic pub /tool_cmd std_msgs/msg/Int8 '{data: 0}'
+ros2 topic pub /tool_cmd std_msgs/msg/Int8 '{data: -1}'
 ```
 
 </details>
