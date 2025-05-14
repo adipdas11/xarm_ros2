@@ -34,6 +34,7 @@ def launch_setup(context, *args, **kwargs):
     velocity_control = LaunchConfiguration('velocity_control', default=False)
     model1300 = LaunchConfiguration('model1300', default=False)
     robot_sn = LaunchConfiguration('robot_sn', default='')
+    linear_motor = LaunchConfiguration('linear_motor', default=False)
     attach_to = LaunchConfiguration('attach_to', default='world')
     attach_xyz = LaunchConfiguration('attach_xyz', default='"0 0 0"')
     attach_rpy = LaunchConfiguration('attach_rpy', default='"0 0 0"')
@@ -90,6 +91,7 @@ def launch_setup(context, *args, **kwargs):
         velocity_control=velocity_control,
         model1300=model1300,
         robot_sn=robot_sn,
+        linear_motor=linear_motor,
         attach_to=attach_to,
         attach_xyz=attach_xyz,
         attach_rpy=attach_rpy,
@@ -132,6 +134,7 @@ def launch_setup(context, *args, **kwargs):
         PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('xarm_moveit_config'), 'launch', '_robot_moveit_common2.launch.py'])),
         launch_arguments={
             'prefix': prefix,
+            'linear_motor': linear_motor,
             'attach_to': attach_to,
             'attach_xyz': attach_xyz,
             'attach_rpy': attach_rpy,

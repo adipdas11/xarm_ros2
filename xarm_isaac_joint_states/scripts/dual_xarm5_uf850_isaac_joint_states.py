@@ -72,7 +72,7 @@ class JointProcessor(Node):
         js_l.header.stamp = self.get_clock().now().to_msg()
         js_l.name = [
             'joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6',
-            'drill_bit_drive'
+            'screw_bit_drive'
         ]
         js_l.position = l_positions + [drill_bit_drive]
         self.pub_uf850.publish(js_l)

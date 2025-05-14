@@ -37,6 +37,7 @@ def generate_launch_description():
             'attach_rpy': '0 0 0',
             'add_gripper': 'true',
             'add_realsense_d435i': 'true',
+            'linear_motor': 'true',
         }.items(),
     )
     

@@ -45,7 +45,7 @@
   <xacro:arg name="mesh_suffix" default="stl"/>
 
   <xacro:arg name="kinematics_suffix" default=""/>
-  <xacro:arg name="single_arm" default="false"/>
+  <xacro:arg name="linear_motor" default="false"/>
 
   <!-- load xarm device -->
   <xacro:include filename="$(find xarm_description)/urdf/xarm_device_macro.xacro" />
@@ -68,6 +68,6 @@
     baud_checkset="$(arg baud_checkset)" default_gripper_baud="$(arg default_gripper_baud)"
     model1300="$(arg model1300)" attach_to="$(arg attach_to)" attach_xyz="$(arg attach_xyz)" attach_rpy="$(arg attach_rpy)"
     robot_sn="$(arg robot_sn)" use_gazebo_camera="$(arg use_gazebo_camera)" mesh_suffix="$(arg mesh_suffix)" kinematics_suffix="$(arg kinematics_suffix)" 
-    single_arm="true"/>
+    linear_motor="$(arg linear_motor)"/>
 
 </robot>

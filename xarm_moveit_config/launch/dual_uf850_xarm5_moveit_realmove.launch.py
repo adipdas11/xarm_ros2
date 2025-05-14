@@ -16,12 +16,13 @@ import os
 
 def generate_launch_description():
     hw_ns = LaunchConfiguration('hw_ns', default='ufactory')
-    
-    # robot moveit fake launch
-    # xarm_moveit_config/launch/_dual_robot_moveit_fake.launch.py
+
+    # robot moveit real launch
+    # xarm_moveit_config/launch/_dual_robot_moveit_realmove.launch.py
     robot_moveit_fake_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('xarm_moveit_config'), 'launch', '_dual_robot_moveit_fake.launch.py'])),
+        PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('xarm_moveit_config'), 'launch', '_dual_robot_moveit_realmove.launch.py'])),
         launch_arguments={
+            'robot_ip_1': '192.168.1.123',
             'dof_1': '6',
             'robot_type_1': 'uf850',
             'attach_to_1': 'world',
@@ -35,6 +36,7 @@ def generate_launch_description():
             'geometry_mesh_tcp_xyz_1':"0 0 0.176",   
             'geometry_mesh_tcp_rpy_1':"0 0 0",
 
+            'robot_ip_1': '192.168.1.239',
             'dof_2': '5',
             'robot_type_2': 'xarm',
             'attach_to_2': 'world',

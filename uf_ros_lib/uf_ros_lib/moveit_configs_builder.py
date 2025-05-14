@@ -246,6 +246,7 @@ class MoveItConfigsBuilder(ParameterBuilder):
         velocity_control = get_param_str('velocity_control', False)
         model1300 = get_param_str('model1300', False)
         robot_sn = get_param_str('robot_sn', '')
+        linear_motor = get_param_str('linear_motor', False)
         attach_to = get_param_str('attach_to', 'world')
         attach_xyz = get_list_param_str('attach_xyz', '0 0 0')
         attach_rpy = get_list_param_str('attach_rpy', '0 0 0')
@@ -293,6 +294,7 @@ class MoveItConfigsBuilder(ParameterBuilder):
             'velocity_control': velocity_control,
             'model1300': model1300,
             'robot_sn': robot_sn,
+            'linear_motor': linear_motor,
             'attach_to': attach_to,
             'attach_xyz': attach_xyz,
             'attach_rpy': attach_rpy,

@@ -41,7 +41,7 @@
     robot_sn:='' 
     mesh_suffix:='stl' 
     kinematics_suffix:=''
-    single_arm:=false
+    linear_motor:=false
     "
     > 
 
@@ -74,7 +74,7 @@
       <link name="world" />
     </xacro:if>
 
-    <xacro:if value="${single_arm}">
+    <xacro:if value="${linear_motor}">
       <link name="${attach_to}" />
     </xacro:if>
 
