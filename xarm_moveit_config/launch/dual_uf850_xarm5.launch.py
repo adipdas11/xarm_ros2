@@ -70,6 +70,12 @@ def generate_launch_description():
         }.items(),
         condition=IfCondition(enable_tool)
     )
+    
+    ready_pose = Node(
+        package='disassembly_v2',
+        executable='ready_pose_node.py',
+        output='screen'
+    )
 
     return LaunchDescription([
         mode_arg,
@@ -78,4 +84,5 @@ def generate_launch_description():
         fake_moveit,
         real_moveit,
         tool_controller,
+        ready_pose
     ])
