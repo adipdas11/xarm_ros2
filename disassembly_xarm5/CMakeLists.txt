@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(xarm_isaac_joint_states)
+project(disassembly_xarm5)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -10,21 +10,29 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
-
 find_package(rclpy REQUIRED)
 
-install(PROGRAMS
+find_package(rosidl_default_generators REQUIRED)
 
-  scripts/ras_collision.py
-  scripts/xarm5_slider_isaac_joint_states.py
-  scripts/dual_xarm5_uf850_isaac_joint_states.py
-  scripts/xarm5_slider_tool_isaac_joint_states.py
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/GetPartGraph.srv"
+ )
+
+install(PROGRAMS
+  scripts/ready_pose_node.py
+  scripts/part_graph_constructor.py
+  scripts/part_graph_constructor_service.py
+  scripts/part_graph_visualizer.py
+  scripts/topological_sort.py
+  scripts/execute_sequence.py
+  scripts/execute_sequence_node.py
+  scripts/yolo_detection.py
 
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(DIRECTORY
-  launch 
+  launch
   DESTINATION share/${PROJECT_NAME}
 )
 

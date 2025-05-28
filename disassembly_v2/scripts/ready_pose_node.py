@@ -43,13 +43,13 @@ class ReadyPoseNode(Node):
         self.send_ready_poses()
 
     def send_ready_poses(self):
-        # Send L-arm pose
-        self.get_logger().info('Sending ready pose to L-arm...')
-        self.send_pose(self.arm_l_pose_plan_client, self.arm_l_exec_plan_client, self.pose_l, "L-arm")
-
         # Send R-arm pose
         self.get_logger().info('Sending ready pose to R-arm...')
         self.send_pose(self.arm_r_pose_plan_client, self.arm_r_exec_plan_client, self.pose_r, "R-arm")
+        
+        # Send L-arm pose
+        self.get_logger().info('Sending ready pose to L-arm...')
+        self.send_pose(self.arm_l_pose_plan_client, self.arm_l_exec_plan_client, self.pose_l, "L-arm")
 
     def send_pose(self, pose_plan_client, exec_plan_client, pose, arm_name):
         # Reset retry count for a new pose

@@ -90,9 +90,9 @@ ufactory_driver:
       set_tcp_maxacc: false
       set_joint_jerk: false
       set_joint_maxacc: false
-      set_gripper_speed: false
-      set_reduced_max_tcp_speed: false
-      set_reduced_max_joint_speed: false
+      set_gripper_speed: true
+      set_reduced_max_tcp_speed: true
+      set_reduced_max_joint_speed: true
       set_gravity_direction: false
       set_tcp_offset: false
       set_world_offset: false

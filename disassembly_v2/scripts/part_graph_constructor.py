@@ -18,10 +18,14 @@ class PartGraphConstructor(Node):
         super().__init__('part_graph_constructor')
 
         # --- Parameters ---
-        self.declare_parameter('model_path',
-            '/home/adip/workspaces/image_processing_ws/HardDrive_Segmentation/' +
-            'runs/segment/train/weights/best.pt')
+        self.declare_parameter('model_path', '/home/adip/workspaces/image_processing_ws/HardDrive_Segmentation/runs/segment/train6/weights/best.pt')
         self.declare_parameter('track_dist_threshold', 0.02)
+        self.declare_parameter('mode', 'sim')  # mode parameter (default: 'sim')
+        
+        # Get the mode parameter
+        mode = self.get_parameter('mode').get_parameter_value().string_value
+        self.get_logger().info(f"Running in {mode} mode")
+
         model_path = self.get_parameter('model_path').get_parameter_value().string_value
         self.track_dist = self.get_parameter('track_dist_threshold').get_parameter_value().double_value
 
@@ -40,13 +44,21 @@ class PartGraphConstructor(Node):
         self.tracked_labels = {}
         self.next_id = 0
 
+        # Choose camera topics based on mode (sim or real)
+        if mode == 'real':
+            self.cam_info_topic = '/camera/camera/color/camera_info'
+            self.color_topic = '/camera/camera/color/image_raw'
+            self.depth_topic = '/camera/camera/depth/image_rect_raw'
+        else:  # default to 'sim'
+            self.cam_info_topic = '/xarm5/D435_1/camera_info'
+            self.color_topic = '/xarm5/D435_1/color/image_raw'
+            self.depth_topic = '/xarm5/D435_1/depth/image_rect_raw'
+
         # Subscribers for RGB-D and camera info
-        cam_info_sub = message_filters.Subscriber(self, CameraInfo,
-                                                  '/camera/camera/color/camera_info')
-        color_sub    = message_filters.Subscriber(self, Image,
-                                                  '/camera/camera/color/image_raw')
-        depth_sub    = message_filters.Subscriber(self, Image,
-                                                  '/camera/camera/depth/image_rect_raw')
+        cam_info_sub = message_filters.Subscriber(self, CameraInfo, self.cam_info_topic)
+        color_sub    = message_filters.Subscriber(self, Image, self.color_topic)
+        depth_sub    = message_filters.Subscriber(self, Image, self.depth_topic)
+        
         ts = message_filters.ApproximateTimeSynchronizer(
             [cam_info_sub, color_sub, depth_sub], queue_size=10, slop=0.1)
         ts.registerCallback(self.callback)
@@ -146,7 +158,11 @@ class PartGraphConstructor(Node):
                 if np.any(dilate(mi.astype(np.uint8), ker).astype(bool) & mj):
                     G.add_edge(detections[i]['id'], detections[j]['id'])
 
-        # Publish graph JSON
+        # Print graph before publishing
+        self.get_logger().info(f"Graph Nodes: {json.dumps(dict(G.nodes(data=True)), indent=2)}")
+        self.get_logger().info(f"Graph Edges: {json.dumps(list(G.edges()), indent=2)}")
+
+        # Publish graph JSON with pose info
         graph = {'nodes': [], 'edges': []}
         for nid, attr in G.nodes(data=True):
             graph['nodes'].append({'id': nid, 'label': attr['label'], 'position': attr['position']})
@@ -164,7 +180,7 @@ class PartGraphConstructor(Node):
             # draw box and label
             cv2.rectangle(color_cv, (x1,y1), (x2,y2), (0,255,0), 2)
             cv2.putText(color_cv, lbl, (x1, y1-6),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
 
         # Publish annotated image
         img_msg = self.bridge.cv2_to_imgmsg(color_cv, 'bgr8')

@@ -19,6 +19,8 @@ install(PROGRAMS
   scripts/gnn_planner.py
   scripts/topological_sort.py
   scripts/task_distributor.py
+
+  scripts/sim_image_save.py
   
   DESTINATION lib/${PROJECT_NAME}
 )

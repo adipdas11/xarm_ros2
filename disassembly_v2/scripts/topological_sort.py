@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -12,66 +13,68 @@ PART_PRIORITY = {
     'default': 3,
 }
 
-def get_priority(label):
-    label = label.lower()
-    for key in PART_PRIORITY:
-        if key in label:
-            return PART_PRIORITY[key]
-    return PART_PRIORITY['default']
+TOOLING_PARTS = {'screw'}
+MANIPULATION_PARTS = {'lid', 'pcb'}
 
-class DSPPlannerNode(Node):
+class DisassemblyPlanNode(Node):
     def __init__(self):
-        super().__init__('dsp_planner_node')
-        self.sub = self.create_subscription(String, 'part_graph', self.part_graph_callback, 10)
-        self.pub = self.create_publisher(String, 'disassembly_sequence', 10)
-        self.get_logger().info('DSP Planner Node started, listening to /part_graph')
+        super().__init__('disassembly_plan_node')
+        self.sub = self.create_subscription(
+            String,
+            '/yolov11/part_graph',
+            self.graph_callback,
+            10)
+        self.pub = self.create_publisher(String, 'disassembly_plan', 10)
+        self.get_logger().info('DisassemblyPlanNode ready—listening on /part_graph')
 
-    def part_graph_callback(self, msg: String):
+    def graph_callback(self, msg: String):
         try:
             data = json.loads(msg.data)
-            nodes = data.get('nodes', [])
-            edges = data.get('edges', [])
+            G = nx.DiGraph()
+            node_map = {}
 
-            DG = nx.DiGraph()
+            for node in data['nodes']:
+                label = node.get('label', node['id'])
+                part_type = label.split('_')[0]
+                priority = PART_PRIORITY.get(part_type, PART_PRIORITY['default'])
+                G.add_node(node['id'], label=label, priority=priority, position=node.get('position'))
+                node_map[node['id']] = part_type
 
-            # Add nodes
-            for n in nodes:
-                pid = n['id']
-                label = n.get('label', 'unknown')
-                DG.add_node(pid, label=label)
+            for edge in data['edges']:
+                G.add_edge(edge['source'], edge['target'])
 
-            # Add edges with direction based on priority
-            for e in edges:
-                u, v = e['source'], e['target']
-                u_label = DG.nodes[u].get('label', '')
-                v_label = DG.nodes[v].get('label', '')
-                u_prio = get_priority(u_label)
-                v_prio = get_priority(v_label)
-                if u_prio < v_prio:
-                    DG.add_edge(u, v)
-                elif v_prio < u_prio:
-                    DG.add_edge(v, u)
-                # else: equal priority, no directed edge added
+            if nx.is_directed_acyclic_graph(G):
+                sorted_ids = sorted(nx.topological_sort(G), key=lambda nid: G.nodes[nid]['priority'])
 
-            # Try topological sort
-            try:
-                topo_order = list(nx.topological_sort(DG))
-            except nx.NetworkXUnfeasible:
-                self.get_logger().warn('Cycle detected in graph, cannot do topological sort. Returning unsorted nodes.')
-                topo_order = list(DG.nodes())
+                task_plan = []
+                for nid in sorted_ids:
+                    node = G.nodes[nid]
+                    label = node['label']
+                    part_type = node_map[nid]
+                    task_type = 'tooling_arm' if part_type in TOOLING_PARTS else 'manipulation_arm'
+                    position = node.get('position', [0.0, 0.0, 0.0])
+                    task_plan.append({
+                        'part': label,
+                        'task_type': task_type,
+                        'pose': position
+                    })
 
-            self.get_logger().info(f'Disassembly sequence generated with {len(topo_order)} parts.')
+                out = {'tasks': task_plan}
+                msg_out = String()
+                msg_out.data = json.dumps(out)
+                self.pub.publish(msg_out)
 
-            out_msg = String()
-            out_msg.data = json.dumps(topo_order)
-            self.pub.publish(out_msg)
+                self.get_logger().info(f"Published disassembly plan with {len(task_plan)} tasks.")
+            else:
+                self.get_logger().warn('Cycle detected in graph — cannot generate plan')
 
         except Exception as e:
-            self.get_logger().error(f'Error processing part graph: {e}')
+            self.get_logger().error(f"Error generating disassembly plan: {e}")
+
 
 def main(args=None):
     rclpy.init(args=args)
-    node = DSPPlannerNode()
+    node = DisassemblyPlanNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
@@ -79,6 +82,7 @@ def main(args=None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

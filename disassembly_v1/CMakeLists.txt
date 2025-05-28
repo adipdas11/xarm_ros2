@@ -21,6 +21,7 @@ install(PROGRAMS
   scripts/pose.py
   scripts/dsp_generator_llm.py
   scripts/sim_test.py
+  scripts/sim_object_classification.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

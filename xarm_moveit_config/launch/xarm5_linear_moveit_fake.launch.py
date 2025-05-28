@@ -31,7 +31,7 @@ def generate_launch_description():
             'dof': '5',
             'robot_type': 'xarm',
             'hw_ns': hw_ns,
-            'no_gui_ctrl': 'true',
+            'no_gui_ctrl': 'false',
             'attach_to': 'robot_base',  
             'attach_xyz': '0 0 0',
             'attach_rpy': '0 0 0',
