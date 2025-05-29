@@ -13,14 +13,10 @@ find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
 
 install(PROGRAMS
-  scripts/ready_pose_node.py
   scripts/part_graph_constructor.py
   scripts/part_graph_visualizer.py
-  scripts/gnn_planner.py
   scripts/topological_sort.py
   scripts/task_distributor.py
-
-  scripts/sim_image_save.py
   
   DESTINATION lib/${PROJECT_NAME}
 )

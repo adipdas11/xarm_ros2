@@ -1,80 +1,68 @@
 #!/usr/bin/env python3
+import json
 
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-import json
-import networkx as nx
 
+# match your executor’s priority ordering:
 PART_PRIORITY = {
-    'screw': 0,
-    'lid': 1,
-    'pcb': 2,
+    'screw':   0,
+    'lid':     1,
+    'pcb':     2,
     'default': 3,
 }
 
-TOOLING_PARTS = {'screw'}
-MANIPULATION_PARTS = {'lid', 'pcb'}
 
-class DisassemblyPlanNode(Node):
+class SequenceGenerator(Node):
     def __init__(self):
-        super().__init__('disassembly_plan_node')
-        self.sub = self.create_subscription(
+        super().__init__('disassembly_sequence_node')
+
+        # listen to the vision‐built graph
+        self.create_subscription(
             String,
             '/yolov11/part_graph',
-            self.graph_callback,
-            10)
-        self.pub = self.create_publisher(String, 'disassembly_plan', 10)
-        self.get_logger().info('DisassemblyPlanNode ready—listening on /part_graph')
+            self.on_graph,
+            10
+        )
 
-    def graph_callback(self, msg: String):
+        # publish the sorted sequence
+        self.seq_pub = self.create_publisher(String, '/disassembly_sequence', 10)
+
+        self.get_logger().info('✅ Disassembly Sequence Generator ready.')
+
+    def on_graph(self, msg: String):
         try:
             data = json.loads(msg.data)
-            G = nx.DiGraph()
-            node_map = {}
+        except json.JSONDecodeError:
+            self.get_logger().warn('Received bad JSON on /yolov11/part_graph')
+            return
 
-            for node in data['nodes']:
-                label = node.get('label', node['id'])
-                part_type = label.split('_')[0]
-                priority = PART_PRIORITY.get(part_type, PART_PRIORITY['default'])
-                G.add_node(node['id'], label=label, priority=priority, position=node.get('position'))
-                node_map[node['id']] = part_type
+        parts = []
+        for node in data.get('nodes', []):
+            label = node.get('label', '')
+            # include both screws and lids (and any other types in PART_PRIORITY)
+            kind = label.split('_', 1)[0]
+            if kind not in PART_PRIORITY:
+                continue
+            prio = PART_PRIORITY.get(kind, PART_PRIORITY['default'])
+            parts.append((prio, label))
 
-            for edge in data['edges']:
-                G.add_edge(edge['source'], edge['target'])
+        # sort by priority then label
+        parts.sort(key=lambda x: (x[0], x[1]))
+        sequence = [lbl for _, lbl in parts]
 
-            if nx.is_directed_acyclic_graph(G):
-                sorted_ids = sorted(nx.topological_sort(G), key=lambda nid: G.nodes[nid]['priority'])
+        # publish as JSON list
+        out = String()
+        out.data = json.dumps(sequence)
+        self.seq_pub.publish(out)
 
-                task_plan = []
-                for nid in sorted_ids:
-                    node = G.nodes[nid]
-                    label = node['label']
-                    part_type = node_map[nid]
-                    task_type = 'tooling_arm' if part_type in TOOLING_PARTS else 'manipulation_arm'
-                    position = node.get('position', [0.0, 0.0, 0.0])
-                    task_plan.append({
-                        'part': label,
-                        'task_type': task_type,
-                        'pose': position
-                    })
-
-                out = {'tasks': task_plan}
-                msg_out = String()
-                msg_out.data = json.dumps(out)
-                self.pub.publish(msg_out)
-
-                self.get_logger().info(f"Published disassembly plan with {len(task_plan)} tasks.")
-            else:
-                self.get_logger().warn('Cycle detected in graph — cannot generate plan')
-
-        except Exception as e:
-            self.get_logger().error(f"Error generating disassembly plan: {e}")
+        self.get_logger().info(f"🔄 Published /disassembly_sequence: {sequence}")
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = DisassemblyPlanNode()
+    node = SequenceGenerator()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

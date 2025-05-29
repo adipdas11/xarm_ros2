@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os
+
 import json
 import rclpy
 from rclpy.node import Node
@@ -11,187 +11,189 @@ from ultralytics import YOLO
 import numpy as np
 import networkx as nx
 import cv2
-from cv2 import dilate
 
-class PartGraphConstructor(Node):
+# import the generated service type
+from disassembly_xarm5.srv import GetPartGraph
+
+# define a fixed BGR color for each class (you can tweak these)
+CLASS_COLORS = {
+    'screw': (0, 255, 0),
+    'lid':   (0, 0, 255),
+    'pcb':   (255, 0, 0),
+}
+DEFAULT_COLOR = (255, 255, 0)  # yellow for anything else
+ALPHA = 0.5  # transparency for overlay
+
+
+class YOLOv11GraphNode(Node):
     def __init__(self):
-        super().__init__('part_graph_constructor')
+        super().__init__('yolov11_graph_node')
 
-        # --- Parameters ---
-        self.declare_parameter('model_path', '/home/adip/workspaces/image_processing_ws/HardDrive_Segmentation/runs/segment/train6/weights/best.pt')
-        self.declare_parameter('track_dist_threshold', 0.02)
-        self.declare_parameter('mode', 'sim')  # mode parameter (default: 'sim')
-        
-        # Get the mode parameter
+        # sim / real mode
+        self.declare_parameter('mode', 'sim')
         mode = self.get_parameter('mode').get_parameter_value().string_value
         self.get_logger().info(f"Running in {mode} mode")
 
-        model_path = self.get_parameter('model_path').get_parameter_value().string_value
-        self.track_dist = self.get_parameter('track_dist_threshold').get_parameter_value().double_value
-
-        # Load YOLOv11 model
-        self.get_logger().info(f'Loading YOLO model from {model_path}...')
-        self.model = YOLO(model_path)
-
-        # CvBridge for ROS<->CV
-        self.bridge = CvBridge()
-
-        # Camera intrinsics storage
-        self.intrinsics = None  # (fx, fy, cx, cy)
-
-        # Tracking state: id -> pos, id -> class_name
-        self.tracked_parts = {}
-        self.tracked_labels = {}
-        self.next_id = 0
-
-        # Choose camera topics based on mode (sim or real)
+        # topics
         if mode == 'real':
             self.cam_info_topic = '/camera/camera/color/camera_info'
-            self.color_topic = '/camera/camera/color/image_raw'
-            self.depth_topic = '/camera/camera/depth/image_rect_raw'
-        else:  # default to 'sim'
-            self.cam_info_topic = '/xarm5/D435_1/camera_info'
-            self.color_topic = '/xarm5/D435_1/color/image_raw'
-            self.depth_topic = '/xarm5/D435_1/depth/image_rect_raw'
+            self.color_topic    = '/camera/camera/color/image_raw'
+            self.depth_topic    = '/camera/camera/depth/image_rect_raw'
+        else:
+            self.cam_info_topic = '/xarm5_d435/camera_info'
+            self.color_topic    = '/xarm5_d435/color/image_raw'
+            self.depth_topic    = '/xarm5_d435/depth/image_rect_raw'
 
-        # Subscribers for RGB-D and camera info
+        # model + tracker (assumes segmentation-enabled weights)
+        self.model = YOLO(
+            '/home/adip/workspaces/image_processing_ws/HardDrive_Segmentation/'
+            'runs/segment/train6/weights/best.pt')
+        self.model.fuse()
+        self.model.tracker = 'bytetrack.yaml'
+
+        # bridge + intrinsics
+        self.bridge = CvBridge()
+        self.intrinsics = None
+
+        # synchronized subscribers
         cam_info_sub = message_filters.Subscriber(self, CameraInfo, self.cam_info_topic)
-        color_sub    = message_filters.Subscriber(self, Image, self.color_topic)
-        depth_sub    = message_filters.Subscriber(self, Image, self.depth_topic)
-        
+        color_sub    = message_filters.Subscriber(self, Image,      self.color_topic)
+        depth_sub    = message_filters.Subscriber(self, Image,      self.depth_topic)
         ts = message_filters.ApproximateTimeSynchronizer(
-            [cam_info_sub, color_sub, depth_sub], queue_size=10, slop=0.1)
+            [cam_info_sub, color_sub, depth_sub], 10, 0.1)
         ts.registerCallback(self.callback)
 
-        # Publishers: graph JSON and annotated image
-        self.graph_pub = self.create_publisher(String, 'part_graph', 10)
-        self.image_pub = self.create_publisher(Image, 'part_graph_image', 10)
+        # publishers
+        self.image_pub     = self.create_publisher(Image,  '/yolov11/annotated_image', 10)
+        self.segment_pub   = self.create_publisher(Image,  '/yolov11/segmented_image', 10)
+        self.graph_pub     = self.create_publisher(String, '/yolov11/part_graph',     10)
 
-        self.get_logger().info('PartGraphConstructor initialized.')
+        # cached JSON string of last graph
+        self._last_graph = json.dumps({'nodes': [], 'edges': []})
 
-    def callback(self, cam_info: CameraInfo, color_msg: Image, depth_msg: Image):
-        # Initialize intrinsics
+        # offer the service
+        self._srv = self.create_service(
+            GetPartGraph,
+            'get_part_graph',
+            self.handle_get_graph
+        )
+        self.get_logger().info("✅ /get_part_graph service ready")
+        self.get_logger().info('YOLOv11 Graph Node initialized.')
+
+    def handle_get_graph(self, request, response):
+        """Service callback: return the last cached graph JSON."""
+        response.json_graph = self._last_graph
+        return response
+
+    def callback(self, cam_info, color_msg, depth_msg):
+        # set intrinsics once
         if self.intrinsics is None:
             fx = cam_info.k[0]; fy = cam_info.k[4]
             cx = cam_info.k[2]; cy = cam_info.k[5]
             self.intrinsics = (fx, fy, cx, cy)
-            self.get_logger().info(f'Intrinsics set: fx={fx}, fy={fy}, cx={cx}, cy={cy}')
+            self.get_logger().info(f"Intrinsics: fx={fx}, fy={fy}, cx={cx}, cy={cy}")
 
-        # Convert images to CV
+        # convert images
         color_cv = self.bridge.imgmsg_to_cv2(color_msg, 'bgr8')
         depth_cv = self.bridge.imgmsg_to_cv2(depth_msg, 'passthrough')
-        depth_np = np.array(depth_cv, dtype=np.float32) / 1000.0
 
-        # YOLO inference
-        results = self.model(color_cv)[0]
-        masks = results.masks.data.cpu().numpy() if results.masks is not None else None
-        boxes = results.boxes.xyxy.cpu().numpy()
-        classes = results.boxes.cls.cpu().numpy().astype(int)
-        names = results.names
+        # prepare a copy for segmentation overlay
+        seg_overlay = color_cv.copy()
+
+        # run detection+segmentation
+        results = self.model.track(color_cv, persist=True)[0]
 
         detections = []
-        # Detect & track
-        for idx, box in enumerate(boxes):
-            class_name = names[classes[idx]]
-            # ignore detections of class 'label'
-            if class_name == 'label':
+        fx, fy, cx0, cy0 = self.intrinsics
+
+        # iterate each detected instance
+        for i, box in enumerate(results.boxes.xyxy.cpu().numpy()):
+            cls_id = int(results.boxes.cls.cpu().numpy()[i])
+            cls_name = results.names[cls_id].lower()
+            if cls_name == 'label':
                 continue
 
-            # get mask or fallback bbox mask
-            if masks is not None:
-                mask = masks[idx].astype(bool)
-            else:
-                x1,y1,x2,y2 = map(int, box)
-                mask = np.zeros(color_cv.shape[:2], bool)
-                mask[y1:y2, x1:x2] = True
+            # retrieve mask for this instance
+            # masks.data: shape (N, H, W), bool or float
+            mask = results.masks.data[i].cpu().numpy().astype(bool)
+            color = CLASS_COLORS.get(cls_name, DEFAULT_COLOR)
 
-            ys, xs = np.where(mask)
-            if ys.size == 0:
+            # overlay the mask
+            seg_overlay[mask] = (
+                ALPHA * np.array(color) + (1 - ALPHA) * seg_overlay[mask]
+            ).astype(np.uint8)
+
+            # bounding box and position
+            x1, y1, x2, y2 = box.astype(int)
+            cx_px = (x1 + x2) // 2
+            cy_px = (y1 + y2) // 2
+            raw = depth_cv[cy_px, cx_px]
+            z = float(raw) / 1000.0 if depth_cv.dtype == np.uint16 else float(raw)
+            if z <= 0 or np.isnan(z):
                 continue
-            cy2d, cx2d = int(ys.mean()), int(xs.mean())
-            z = float(depth_np[cy2d, cx2d])
-            fx, fy, cx, cy = self.intrinsics
-            X = (cx2d - cx) * z / fx
-            Y = (cy2d - cy) * z / fy
-            Z = z
+            X = (cx_px - cx0) * z / fx
+            Y = (cy_px - cy0) * z / fy
 
-            # assign track ID based on proximity
-            assigned_id = None
-            for pid, pos in self.tracked_parts.items():
-                if np.linalg.norm(np.array(pos) - np.array((X, Y, Z))) < self.track_dist:
-                    assigned_id = pid
-                    break
-            if assigned_id is None:
-                assigned_id = f'part_{self.next_id}'
-                self.next_id += 1
+            track_id = int(results.boxes.id.cpu().numpy()[i]) if results.boxes.id is not None else i
+            tid = f"part_{track_id}"
 
-            # update tracking
-            self.tracked_parts[assigned_id] = (X, Y, Z)
-            self.tracked_labels[assigned_id] = class_name
             detections.append({
-                'id': assigned_id,
-                'pos': (X, Y, Z),
-                'mask': mask,
-                'bbox': box.astype(int),
-                'centroid': (cx2d, cy2d)
+                'id':       tid,
+                'class':    cls_name,
+                'bbox':     (x1, y1, x2, y2),
+                'centroid': (cx_px, cy_px),
+                'position': (X, Y, z)
             })
 
-        # Build adjacency graph
+            # annotate on color_cv
+            cv2.rectangle(color_cv, (x1, y1), (x2, y2), color, 2)
+            cv2.circle(color_cv, (cx_px, cy_px), 4, color, -1)
+            label = f"{cls_name}_{track_id}: ({X:.2f}, {Y:.2f}, {z:.2f})"
+            cv2.putText(color_cv, label, (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+        # build graph
         G = nx.Graph()
         for det in detections:
-            pid = det['id']
-            # label for graph: <class>_<id index>
-            idx = pid.split('_')[1]
-            node_label = f"{self.tracked_labels[pid]}_{idx}"
-            G.add_node(pid, label=node_label, position=det['pos'])
-
-        ker = np.ones((5,5), np.uint8)
+            G.add_node(det['id'],
+                       label=f"{det['class']}_{det['id'].split('_')[1]}",
+                       position=det['position'])
         for i in range(len(detections)):
             for j in range(i+1, len(detections)):
-                mi = detections[i]['mask']; mj = detections[j]['mask']
-                yi, xi = np.where(mi); yj, xj = np.where(mj)
-                if not yi.size or not yj.size:
-                    continue
-                if (xi.max()<xj.min() or xj.max()<xi.min() or
-                    yi.max()<yj.min() or yj.max()<yi.min()):
-                    continue
-                if np.any(dilate(mi.astype(np.uint8), ker).astype(bool) & mj):
+                p1, p2 = np.array(detections[i]['position']), np.array(detections[j]['position'])
+                if np.linalg.norm(p1 - p2) < 0.1:
                     G.add_edge(detections[i]['id'], detections[j]['id'])
 
-        # Print graph before publishing
-        self.get_logger().info(f"Graph Nodes: {json.dumps(dict(G.nodes(data=True)), indent=2)}")
-        self.get_logger().info(f"Graph Edges: {json.dumps(list(G.edges()), indent=2)}")
+        graph_dict = {
+            'nodes': [{'id': nid,
+                       'label': attr['label'],
+                       'position': attr['position']}
+                      for nid, attr in G.nodes(data=True)],
+            'edges': [{'source': u, 'target': v} for u, v in G.edges()]
+        }
 
-        # Publish graph JSON with pose info
-        graph = {'nodes': [], 'edges': []}
-        for nid, attr in G.nodes(data=True):
-            graph['nodes'].append({'id': nid, 'label': attr['label'], 'position': attr['position']})
-        for u, v in G.edges():
-            graph['edges'].append({'source': u, 'target': v})
-        gmsg = String(); gmsg.data = json.dumps(graph)
-        self.graph_pub.publish(gmsg)
+        # cache & publish graph JSON
+        self._last_graph = json.dumps(graph_dict)
+        self.graph_pub.publish(String(data=self._last_graph))
 
-        # Annotate image with tracked names
-        for det in detections:
-            x1,y1,x2,y2 = det['bbox']
-            pid = det['id']
-            idx = pid.split('_')[1]
-            lbl = f"{self.tracked_labels[pid]}_{idx}"
-            # draw box and label
-            cv2.rectangle(color_cv, (x1,y1), (x2,y2), (0,255,0), 2)
-            cv2.putText(color_cv, lbl, (x1, y1-6),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 2)
+        # publish segmentation overlay
+        seg_msg = self.bridge.cv2_to_imgmsg(seg_overlay, 'bgr8')
+        seg_msg.header = color_msg.header
+        self.segment_pub.publish(seg_msg)
 
-        # Publish annotated image
-        img_msg = self.bridge.cv2_to_imgmsg(color_cv, 'bgr8')
-        self.image_pub.publish(img_msg)
+        # publish annotated image
+        ann_msg = self.bridge.cv2_to_imgmsg(color_cv, 'bgr8')
+        ann_msg.header = color_msg.header
+        self.image_pub.publish(ann_msg)
 
-        self.get_logger().info(f'Published graph & annotated image with tracked names.')
+        # log labels
+        labels = [n['label'] for n in graph_dict['nodes']]
+        self.get_logger().info(f"📋 Labels: {labels}")
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = PartGraphConstructor()
+    node = YOLOv11GraphNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
@@ -199,6 +201,7 @@ def main(args=None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

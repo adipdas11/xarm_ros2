@@ -20,13 +20,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 install(PROGRAMS
   scripts/ready_pose_node.py
-  scripts/part_graph_constructor.py
   scripts/part_graph_constructor_service.py
   scripts/part_graph_visualizer.py
-  scripts/topological_sort.py
-  scripts/execute_sequence.py
   scripts/execute_sequence_node.py
-  scripts/yolo_detection.py
 
   DESTINATION lib/${PROJECT_NAME}
 )

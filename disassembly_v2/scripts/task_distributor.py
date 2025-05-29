@@ -1,127 +1,83 @@
 #!/usr/bin/env python3
+import json
+
 import rclpy
 from rclpy.node import Node
-from rclpy.executors import MultiThreadedExecutor
-from xarm_msgs.srv import PlanPose, PlanExec
 from std_msgs.msg import String
-import json
-import time
 
-class TaskDistributorNode(Node):
-    MAX_RETRIES = 3
-
+class SequenceDistributor(Node):
     def __init__(self):
-        super().__init__('task_distributor_node')
+        super().__init__('sequence_distributor')
 
-        # Service Clients for both arms
-        self.arm_r_pose_plan_client = self.create_client(PlanPose, '/R_/xarm_pose_plan')
-        self.arm_r_exec_plan_client = self.create_client(PlanExec, '/R_/xarm_exec_plan')
-        self.arm_l_pose_plan_client = self.create_client(PlanPose, '/L_/xarm_pose_plan')
-        self.arm_l_exec_plan_client = self.create_client(PlanExec, '/L_/xarm_exec_plan')
+        # Subscribers
+        self.create_subscription(
+            String,
+            '/disassembly_sequence',
+            self.on_sequence,
+            10
+        )
 
-        # Topic subscription for Disassembly Sequence (DSP)
-        self.create_subscription(String, 'disassembly_sequence', self.dsp_callback, 10)
+        # Publishers
+        self.pub_tooling = self.create_publisher(String, '/tooling_arm_tasks', 10)
+        self.pub_manip   = self.create_publisher(String, '/manipulation_arm_tasks', 10)
+        self.pub_plan    = self.create_publisher(String, '/distributed_plan', 10)
 
-        self.get_logger().info('TaskDistributorNode initialized.')
+        self.get_logger().info("✅ Sequence Distributor ready.")
 
-    def dsp_callback(self, msg: String):
-        # Parse the received disassembly sequence
+    def on_sequence(self, msg: String):
         try:
-            task_sequence = json.loads(msg.data)
-            self.get_logger().info(f"Received disassembly sequence: {json.dumps(task_sequence, indent=2)}")
+            seq = json.loads(msg.data)
+            if not isinstance(seq, list):
+                raise ValueError
+        except Exception:
+            self.get_logger().warn("Received invalid sequence JSON")
+            return
 
-            # Go through each task in the sequence
-            for task in task_sequence['tasks']:
-                part = task['part']
-                pose = task['pose']
-                task_type = task['task_type']
-                arm_to_use = task['arm']  # "L-arm" or "R-arm" for manipulation arm
+        tooling = []
+        manip   = []
+        plan    = []
 
-                # Print task details
-                self.get_logger().info(f"Distributing task: {task_type} for part {part}")
+        for part in seq:
+            if part.startswith('screw_'):
+                arm = 'tooling'
+                # tooling arm: unscrew then drop
+                tooling.extend([f"unscrew_{part}", f"drop_{part}"])
+                plan.append({'arm': arm, 'part': part, 'action': 'unscrew'})
+                plan.append({'arm': arm, 'part': part, 'action': 'drop'})
 
-                # Send pose to the correct arm
-                if arm_to_use == 'L-arm':
-                    self.send_pose(self.arm_l_pose_plan_client, self.arm_l_exec_plan_client, pose, "L-arm")
-                elif arm_to_use == 'R-arm':
-                    self.send_pose(self.arm_r_pose_plan_client, self.arm_r_exec_plan_client, pose, "R-arm")
-                
-                # Perform the task (e.g., unscrewing, picking)
-                self.perform_task(task_type, arm_to_use)
+            elif part.startswith(('lid_','pcb_')):
+                arm = 'manipulation'
+                # manipulation arm: remove then drop
+                manip.extend([f"remove_{part}", f"drop_{part}"])
+                plan.append({'arm': arm, 'part': part, 'action': 'remove'})
+                plan.append({'arm': arm, 'part': part, 'action': 'drop'})
 
-        except Exception as e:
-            self.get_logger().error(f"Error processing disassembly sequence: {e}")
+            else:
+                # unknown default to manipulation
+                arm = 'manipulation'
+                manip.extend([f"handle_{part}", f"drop_{part}"])
+                plan.append({'arm': arm, 'part': part, 'action': 'handle'})
+                plan.append({'arm': arm, 'part': part, 'action': 'drop'})
 
-    def send_pose(self, pose_plan_client, exec_plan_client, pose, arm_name):
-        # Reset retry count for a new pose
-        retry_count = 0
+        # publish tooling arm task list
+        msg_tooling = String(data=json.dumps(tooling))
+        self.pub_tooling.publish(msg_tooling)
 
-        while retry_count < self.MAX_RETRIES:
-            try:
-                # Send Pose using PlanPose service
-                if pose_plan_client.wait_for_service(timeout_sec=1.0):
-                    request = PlanPose.Request()
-                    request.pose.position.x = pose['position']['x']
-                    request.pose.position.y = pose['position']['y']
-                    request.pose.position.z = pose['position']['z']
-                    request.pose.orientation.x = pose['orientation']['x']
-                    request.pose.orientation.y = pose['orientation']['y']
-                    request.pose.orientation.z = pose['orientation']['z']
-                    request.pose.orientation.w = pose['orientation']['w']
+        # publish manipulation arm task list
+        msg_manip = String(data=json.dumps(manip))
+        self.pub_manip.publish(msg_manip)
 
-                    pose_plan_client.call_async(request)
-                    self.get_logger().info(f"{arm_name} Pose sent: {pose}")
+        # publish full distributed plan
+        msg_plan = String(data=json.dumps(plan))
+        self.pub_plan.publish(msg_plan)
 
-                    # Wait for the arm to reach the pose
-                    time.sleep(2)  # can be replaced with actual feedback mechanism
-
-                    # Execute the pose plan with PlanExec service
-                    if exec_plan_client.wait_for_service(timeout_sec=1.0):
-                        exec_request = PlanExec.Request()  # No 'data' field in PlanExec.Request
-                        exec_plan_client.call_async(exec_request)
-                        self.get_logger().info(f"{arm_name} pose execution started")
-                        return  # Pose and execution completed, exit the loop
-                    else:
-                        self.get_logger().warn(f"{arm_name} /xarm_exec_plan service not available")
-                else:
-                    self.get_logger().warn(f"{arm_name} /xarm_pose_plan service not available")
-                
-                retry_count += 1
-                self.get_logger().warn(f"[{arm_name}] Retry {retry_count}/{self.MAX_RETRIES}...")
-
-            except Exception as e:
-                self.get_logger().error(f'[{arm_name}] Exception during sending pose or execution: {e}')
-                retry_count += 1
-
-        self.get_logger().error(f"[{arm_name}] Pose execution failed after {self.MAX_RETRIES} retries")
-
-    def perform_task(self, task_type, arm_name):
-        """ Execute the task for the given arm. """
-        self.get_logger().info(f"Performing task: {task_type} on {arm_name}")
-
-        # For now, let's simulate the task execution. 
-        # In practice, you would call the relevant service for unscrewing, picking, etc.
-        if task_type == 'unscrewing':
-            self.get_logger().info(f"Executing unscrewing task for {arm_name}")
-            # Implement unscrewing logic here
-        elif task_type == 'picking':
-            self.get_logger().info(f"Executing picking task for {arm_name}")
-            # Implement picking logic here
-        elif task_type == 'placing':
-            self.get_logger().info(f"Executing placing task for {arm_name}")
-            # Implement placing logic here
-        else:
-            self.get_logger().warn(f"Unknown task type: {task_type}")
-
+        self.get_logger().info(f"🔄 Distributed plan: {plan}")
 
 def main(args=None):
     rclpy.init(args=args)
-    node = TaskDistributorNode()
-    executor = MultiThreadedExecutor()
-    executor.add_node(node)
-
+    node = SequenceDistributor()
     try:
-        executor.spin()
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
