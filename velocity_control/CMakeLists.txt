@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(disassembly_xarm5)
+project(velocity_control)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -12,19 +12,9 @@ find_package(ament_cmake REQUIRED)
 # find_package(<dependency> REQUIRED)
 find_package(rclpy REQUIRED)
 
-find_package(rosidl_default_generators REQUIRED)
-
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/GetPartGraph.srv"
- )
-
 install(PROGRAMS
-  scripts/ready_pose_node.py
-  scripts/remove_extra_tf.py
-  scripts/part_graph_constructor_service.py
-  scripts/part_graph_visualizer.py
-  scripts/execute_sequence_node.py
-
+  scripts/velocity_pose_control.py
+  
   DESTINATION lib/${PROJECT_NAME}
 )
 

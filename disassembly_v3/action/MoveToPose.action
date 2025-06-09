@@ -1,0 +1,14 @@
+# MoveToPose.action
+# Goal
+geometry_msgs/PoseStamped target
+float32 tolerance
+float32 max_linear_speed
+float32 max_angular_speed
+---
+# Result
+bool success
+string message
+---
+# Feedback
+float32[3] linear_error
+float32[3] angular_error

@@ -1,0 +1,4 @@
+# GetSequence.srv
+# (no request fields)
+---
+string[] sequence

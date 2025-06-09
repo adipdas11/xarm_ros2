@@ -1,0 +1,7 @@
+# TransformPose.srv
+geometry_msgs/PoseStamped pose
+string target_frame
+---
+geometry_msgs/PoseStamped transformed_pose
+bool success
+string message

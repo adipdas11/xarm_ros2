@@ -7,22 +7,23 @@ from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
 from launch.conditions import IfCondition
 
+
 def generate_launch_description():
     mode_arg = DeclareLaunchArgument(
         'mode',
         default_value='sim',
         description='Run mode: "sim" for simulation, "real" for real hardware'
     )
-    
+
     enable_tool_arg = DeclareLaunchArgument(
         'enable_tool',
         default_value='true',
         description='Whether to launch the tool controller'
     )
-    
+
     mode = LaunchConfiguration('mode')
     enable_tool = LaunchConfiguration('enable_tool')
-    
+
     isaac_sim_joint_states = Node(
         package='xarm_isaac_joint_states',
         executable='xarm5_slider_tool_isaac_joint_states.py',
@@ -34,23 +35,22 @@ def generate_launch_description():
         executable='linear_motor_tf.py',
         output='screen'
     )
-    
+
     slider_control_node = Node(
         package='ufactory_linear_motor_description',
         executable='linear_service_control.py',
         output='screen',
         parameters=[{'ip': '192.168.1.239'}],
     )
-    
+
     xarm5_camera_calibration = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([
-                FindPackageShare('xarm_isaac_joint_states'),
-                'launch',
-                'xarm5_camera_calibration_link5.launch.py'
-            ])
-        ),
+        PythonLaunchDescriptionSource(PathJoinSubstitution([
+            FindPackageShare('disassembly_xarm5'),
+            'launch',
+            'xarm5_tool_camera_calibration.launch.py'
+        ])),
     )
-    
+
     tool_controller = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -65,7 +65,7 @@ def generate_launch_description():
         }.items(),
         condition=IfCondition(enable_tool)
     )
-    
+
     fake_moveit = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -86,14 +86,30 @@ def generate_launch_description():
         ),
         condition=IfCondition(PythonExpression(["'", mode, "' == 'real'"]))
     )
-    
+
+    realsense_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('realsense2_camera'),
+                'launch',
+                'rs_launch.py'
+            ])
+        ),
+        launch_arguments={
+            'depth_module.depth_profile': '640x480x15',
+            'pointcloud.enable': 'true',
+            'publish_tf': 'false',
+        }.items(),
+        condition=IfCondition(PythonExpression(["'", mode, "' == 'real'"]))
+    )
+
     delayed_ready_pose = TimerAction(
         period=3.0,
         actions=[
-                Node(
-                    package='disassembly_xarm5',
-                    executable='ready_pose_node.py',
-                    output='screen'
+            Node(
+                package='disassembly_xarm5',
+                executable='ready_pose_node.py',
+                output='screen'
             )
         ]
     )
@@ -113,17 +129,18 @@ def generate_launch_description():
             )
         ]
     )
-    
+
     return LaunchDescription([
+        mode_arg,
+        enable_tool_arg,
         slider_tf_node,
         slider_control_node,
         xarm5_camera_calibration,
-        mode_arg,
-        enable_tool_arg,
         isaac_sim_joint_states,
         fake_moveit,
         real_moveit,
+        realsense_launch,
         tool_controller,
-        delayed_ready_pose,  
+        delayed_ready_pose,
         delayed_publisher
     ])

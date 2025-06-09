@@ -111,8 +111,8 @@ def main(args=None):
     except KeyboardInterrupt:
         node.get_logger().info('Shutting down linear motor node...')
     finally:
-        node.arm.set_linear_track_enable(False)
-        node.arm.motion_enable(False)
+        # node.arm.set_linear_track_enable(False)
+        # node.arm.motion_enable(False)
         node.destroy_node()
         rclpy.shutdown()
 

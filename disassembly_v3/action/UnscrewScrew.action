@@ -1,0 +1,13 @@
+# UnscrewScrew.action
+# Goal
+string screw_id
+float32 torque_threshold     # effort spike indicating screw freed
+float32 z_retract_step       # e.g. 0.001 (1 mm)
+float32 timeout              # max unscrew time in seconds
+---
+# Result
+bool success
+string message
+---
+# Feedback
+float32[3] joint_efforts     # current efforts of joints 2,3,4

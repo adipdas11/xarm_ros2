@@ -1,0 +1,14 @@
+# ApproachUntilContact.action
+# Goal
+geometry_msgs/PoseStamped target
+float32 approach_height      # e.g. 0.02 (20 mm)
+float32 velocity_scale       # e.g. 0.2  (20% of max speed)
+float32 effort_threshold     # effort above which we assume contact
+---
+# Result
+bool success
+geometry_msgs/PoseStamped contact_pose
+string message
+---
+# Feedback
+float32 current_effort

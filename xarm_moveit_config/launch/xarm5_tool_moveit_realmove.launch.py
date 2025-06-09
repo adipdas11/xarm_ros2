@@ -13,7 +13,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(PathJoinSubstitution([
             FindPackageShare('xarm_moveit_config'),
             'launch',
-            '_robot_moveit_fake.launch.py'
+            '_robot_moveit_realmove.launch.py'
         ])),
         launch_arguments={
             'robot_ip': '192.168.1.239',
@@ -24,7 +24,7 @@ def generate_launch_description():
             'attach_to': 'robot_base',  
             'attach_xyz': '0 0 0',
             'attach_rpy': '0 0 0',
-            'add_realsense_d435i': 'true',
+            'add_realsense_d435i': 'false',
             'linear_motor': 'true',
             'add_other_geometry':'true',   
             'geometry_type':'mesh',   

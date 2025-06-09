@@ -1,0 +1,4 @@
+# GetPartGraph.srv
+# (no request fields)
+---
+string json_graph
