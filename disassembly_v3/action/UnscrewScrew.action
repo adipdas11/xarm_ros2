@@ -1,4 +1,5 @@
 # UnscrewScrew.action
+# Defines the UnscrewScrew action: spin the tool motor to remove a screw, monitoring joint efforts and retracting if torque spikes.
 # Goal
 string screw_id
 float32 torque_threshold     # effort spike indicating screw freed

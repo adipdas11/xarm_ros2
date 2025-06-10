@@ -1,4 +1,5 @@
 # MoveToPose.action
+# Defines the MoveToPose action: servo the robot TCP to a goal PoseStamped using PID based Cartesian velocity control, with feedback and tolerance.
 # Goal
 geometry_msgs/PoseStamped target
 float32 tolerance

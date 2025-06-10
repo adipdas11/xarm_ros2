@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+"""
+VisionGraphNode: 
+Runs YOLOv11 on synchronized color+depth images to build a 3D proximity graph of detected parts; 
+publishes /part_graph and offers GetPartGraph service.
+"""
+
 import json
 import rclpy
 from rclpy.node import Node

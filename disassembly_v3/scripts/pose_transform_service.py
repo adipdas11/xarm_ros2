@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+
+"""
+PoseTransformService: 
+Provides the TransformPose service, wrapping TF2 lookup/transform to convert PoseStamped between frames.
+"""
+
 import rclpy
 from rclpy.node import Node
 from tf2_ros import Buffer, TransformListener

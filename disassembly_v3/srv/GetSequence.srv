@@ -1,4 +1,5 @@
 # GetSequence.srv
+# Service returning the current disassembly sequence (ordered list of part IDs) as a string array.
 # (no request fields)
 ---
 string[] sequence

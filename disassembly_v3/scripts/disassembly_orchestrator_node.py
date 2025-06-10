@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+"""
+DisassemblyOrchestrator: 
+High level orchestrator: 
+calls GetSequence/GetPartGraph/TransformPose services and the three action servers in sequence to perform full disassembly.
+"""
+
 import json
 import rclpy
 from rclpy.node import Node

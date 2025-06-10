@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+
+"""
+UnscrewActionServer: 
+Implements the UnscrewScrew action server: 
+runs the screwdriver motor, monitors joint efforts, 
+and retracts slightly if torque spikes until unscrew completes.
+"""
+
 import time
 import rclpy
 from rclpy.node import Node

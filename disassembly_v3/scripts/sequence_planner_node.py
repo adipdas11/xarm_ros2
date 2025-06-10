@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+"""
+SequencePlannerNode: 
+Subscribes to /part_graph, filters and prioritizes “screw_*” nodes, 
+publishes /disassembly_sequence, and offers GetSequence service.
+"""
+
 import json
 import rclpy
 from rclpy.node import Node

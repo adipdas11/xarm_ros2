@@ -1,4 +1,5 @@
 # ApproachUntilContact.action
+# Defines the ApproachUntilContact action: move above a target then descend until a joint effort threshold signals contact.
 # Goal
 geometry_msgs/PoseStamped target
 float32 approach_height      # e.g. 0.02 (20 mm)
