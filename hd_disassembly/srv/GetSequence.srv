@@ -1,0 +1,7 @@
+# Request
+string request_type      # "start" or "next"
+---
+# Response
+int32 part_id            # Numeric track ID
+string part_label        # e.g. "screw", "lid", etc.
+bool finished            # True if all parts processed

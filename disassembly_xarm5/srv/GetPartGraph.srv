@@ -1,7 +1,0 @@
-# Request
-# (empty)
-
----
-# Response
-# The entire graph as a JSON string
-string json_graph

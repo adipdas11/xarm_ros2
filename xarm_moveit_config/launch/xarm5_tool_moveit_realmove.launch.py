@@ -24,7 +24,7 @@ def generate_launch_description():
             'attach_to': 'robot_base',  
             'attach_xyz': '0 0 0',
             'attach_rpy': '0 0 0',
-            'add_realsense_d435i': 'false',
+            'add_realsense_d435i': 'true',
             'linear_motor': 'true',
             'add_other_geometry':'true',   
             'geometry_type':'mesh',   
@@ -33,6 +33,7 @@ def generate_launch_description():
             'geometry_mesh_origin_rpy':"0 3.14 3.14",   
             'geometry_mesh_tcp_xyz':"0 0 0.176",   
             'geometry_mesh_tcp_rpy':"0 0 0",
+            'effort_control': 'true',
         }.items(),
     )
     

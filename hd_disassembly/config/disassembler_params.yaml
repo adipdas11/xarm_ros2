@@ -1,0 +1,36 @@
+vision:
+  model_path: "/home/adip/workspaces/image_processing_ws/HardDrive_Segmentation/runs/segment/train6/weights/best.pt"
+  ignore_classes: ["label"]
+  camera:
+    rgb_topic:    "/camera/camera/color/image_raw"
+    depth_topic:  "/camera/camera/depth/image_rect_raw"
+    info_topic:   "/camera/camera/color/camera_info"
+    frame_id:     "camera_color_optical_frame"
+
+tf:
+  target_frame: "link_base"
+
+robot:
+  home_pose:
+    position: { x: 0.4, y: 0.0, z: 0.15 }
+    orientation: { x: 1.0, y: 0.0, z: 0.0, w: 0.0 }
+  stop_height: 0.10    # meters above object
+  probing_speed: 0.0255  # m/s
+  unscrew_speed: 0.1   # rad/s or mm/s depending on end-effector
+  effort_threshold:
+    probing: -6.0       # Nm (joint_3) to detect contact
+    unscrew: -6.0       # Nm stabilization threshold
+
+disassembly:
+  part_priority:
+    screw:   0
+    lid:     1
+    pcb:     2
+    default: 3
+
+tracker:
+  max_lost: 5          # frames before a track is deleted
+  iou_threshold: 0.3   # for assignment
+
+marker_publisher:
+  marker_lifetime: 0.5 # seconds

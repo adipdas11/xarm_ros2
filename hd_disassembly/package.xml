@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+             schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>hd_disassembly</name>
+  <version>0.1.0</version>
+  <description>Hard‐drive disassembly orchestration via xArm5</description>
+  <maintainer email="adipdas11@gmail.com">adip</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Build tool -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Dependencies for generating & using custom interfaces -->
+  <build_depend>rosidl_default_generators</build_depend>   <!-- code‐gen for .action/.srv :contentReference[oaicite:0]{index=0} -->
+  <exec_depend>rosidl_default_runtime</exec_depend>       <!-- runtime support for our interfaces :contentReference[oaicite:1]{index=1} -->
+  <depend>geometry_msgs</depend>                           <!-- used by our actions & services :contentReference[oaicite:2]{index=2} -->
+  <build_depend>rclcpp</build_depend>                     <!-- for C++ nodes :contentReference[oaicite:3]{index=3} -->
+  <exec_depend>rclcpp</exec_depend>                       <!-- runtime for C++ nodes -->
+
+  <!-- Let ament know this package *defines* interfaces -->
+  <member_of_group>rosidl_interface_packages</member_of_group>  <!-- MUST be top‐level :contentReference[oaicite:4]{index=4} -->
+
+  <!-- Testing (optional) -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

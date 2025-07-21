@@ -96,7 +96,7 @@ def generate_launch_description():
             ])
         ),
         launch_arguments={
-            'depth_module.depth_profile': '640x480x15',
+            'depth_module.depth_profile': '1280x720x30',
             'pointcloud.enable': 'true',
             'publish_tf': 'false',
         }.items(),
@@ -135,12 +135,12 @@ def generate_launch_description():
         enable_tool_arg,
         slider_tf_node,
         slider_control_node,
-        xarm5_camera_calibration,
+        # xarm5_camera_calibration,
         isaac_sim_joint_states,
         fake_moveit,
         real_moveit,
         realsense_launch,
         tool_controller,
-        delayed_ready_pose,
+        # delayed_ready_pose,
         delayed_publisher
     ])

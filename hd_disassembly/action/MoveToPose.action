@@ -1,0 +1,10 @@
+# Goal
+geometry_msgs/PoseStamped target_pose   # Desired end‐effector pose
+float64 stop_height                     # Meters above the object to stop
+---
+# Result
+bool success                            # True if pose reached within tolerance
+string message                          # Optional status or error description
+---
+# Feedback
+geometry_msgs/PoseStamped current_pose  # Current end‐effector pose during motion

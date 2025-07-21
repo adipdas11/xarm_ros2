@@ -44,27 +44,29 @@ arm.set_mode(0)
 arm.set_state(state=0)
 
 arm.move_gohome(wait=True)
-arm.set_position(x=400, y=-50, z=150, roll=-180, pitch=0, yaw=0, speed=100, is_radian=False, wait=True)
+# arm.set_position(x=400, y=-50, z=150, roll=-180, pitch=0, yaw=0, speed=60, is_radian=False, wait=True)
+
+arm.set_position(x=400, y=-00, z=150, roll=3.14, pitch=0, yaw=0, speed=60, is_radian=True, wait=True)
 
 # set mode: cartesian online trajectory planning mode
 # the running command will be interrupted when the next command is received
-arm.set_mode(7)
-arm.set_state(0)
-time.sleep(1)
+# arm.set_mode(7)
+# arm.set_state(0)
+# time.sleep(1)
 
-speed = 60
+# speed = 60
 
-for i in range(10):
-    # run on mode(7)
-    # the running command will be interrupted, and run the new command
-    arm.set_position(x=400, y=-150, z=150, roll=-180, pitch=0, yaw=0, speed=speed, wait=False)
-    time.sleep(1)
-    # the running command will be interrupted, and run the new command
-    arm.set_position(x=400, y=100, z=150, roll=-180, pitch=0, yaw=0, speed=speed, wait=False)
-    time.sleep(1)
+# for i in range(10):
+#     # run on mode(7)
+#     # the running command will be interrupted, and run the new command
+#     arm.set_position(x=400, y=-150, z=150, roll=-180, pitch=0, yaw=0, speed=speed, wait=False)
+#     time.sleep(1)
+#     # the running command will be interrupted, and run the new command
+#     arm.set_position(x=400, y=100, z=150, roll=-180, pitch=0, yaw=0, speed=speed, wait=False)
+#     time.sleep(1)
 
 # set_mode: position mode
-arm.set_mode(0)
-arm.set_state(0)
-arm.move_gohome(wait=True)
+# arm.set_mode(0)
+# arm.set_state(0)
+# arm.move_gohome(wait=True)
 arm.disconnect()

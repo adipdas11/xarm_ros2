@@ -1,0 +1,12 @@
+# Goal
+float64 speed               # Downward speed (m/s)
+float64 effort_threshold    # Contact threshold on joint_3 (Nm)
+---
+# Result
+float64 contact_depth       # Depth travelled before contact (m)
+bool success                # True if contact detected
+string message              # Status or failure reason
+---
+# Feedback
+float64 current_effort      # Real‐time joint_3 effort reading (Nm)
+float64 current_depth       # Real‐time travelled depth (m)

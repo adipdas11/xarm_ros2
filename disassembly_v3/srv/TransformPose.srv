@@ -1,8 +1,0 @@
-# TransformPose.srv
-# Service to transform a PoseStamped into any target frame using TF2, returning the transformed pose plus success flag.
-geometry_msgs/PoseStamped pose
-string target_frame
----
-geometry_msgs/PoseStamped transformed_pose
-bool success
-string message

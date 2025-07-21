@@ -71,7 +71,7 @@ int main(int argc, char** argv)
     geometry_msgs::msg::Pose target_pose;
     target_pose.position.x = 0.37;
     target_pose.position.y = 0.0;
-    target_pose.position.z = 0.30;
+    target_pose.position.z = 0.15;
     target_pose.orientation.x = 1.0;
     target_pose.orientation.y = 0;
     target_pose.orientation.z = 0;

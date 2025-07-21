@@ -47,6 +47,7 @@ def generate_launch_description():
             'add_gripper': 'true',
             'add_realsense_d435i': 'true',
             'linear_motor': 'true',
+            'effort_control': 'true',
         }.items(),
     )
     
@@ -99,7 +100,7 @@ def generate_launch_description():
     return LaunchDescription([
         slider_tf_node,
         robot_moveit_realmove_launch,
-        xarm5_camera_calibration,
+        # xarm5_camera_calibration,
         slider_control_node,
         isaac_joint_states,
         delayed_ready_pose,   

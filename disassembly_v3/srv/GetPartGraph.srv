@@ -1,5 +1,0 @@
-# GetPartGraph.srv
-# Service returning the latest part graph (nodes + edges) as a JSON string from the vision node.
-# (no request fields)
----
-string json_graph

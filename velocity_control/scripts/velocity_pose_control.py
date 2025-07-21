@@ -1,321 +1,215 @@
 #!/usr/bin/env python3
 
-import rclpy
-import numpy as np
-import csv
 import os
+import sys
+import time
+import threading
+
+import numpy as np
+import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped, TwistStamped
-from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Pose
 import tf2_ros
+from tf2_ros import TransformException
+
+# add xArm wrapper to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+from xarm.wrapper import XArmAPI
 
 
-def quaternion_inverse(q):
-    return np.array([-q[0], -q[1], -q[2], q[3]], dtype=float) / np.dot(q, q)
-
-
-def quaternion_multiply(a, b):
-    ax, ay, az, aw = a
-    bx, by, bz, bw = b
+def quaternion_matrix(quat):
+    """
+    Build a 4×4 rotation matrix from quaternion [x, y, z, w].
+    """
+    x, y, z, w = quat
+    xx, yy, zz = x*x, y*y, z*z
+    xy, xz, xw = x*y, x*z, x*w
+    yz, yw, zw = y*z, y*w, z*w
     return np.array([
-        aw*bx + ax*bw + ay*bz - az*by,
-        aw*by + ay*bw + az*bx - ax*bz,
-        aw*bz + az*bw + ax*by - ay*bx,
-        aw*bw - ax*bx - ay*by - az*bz,
+        [w*w + xx - yy - zz, 2*(xy - zw),      2*(xz + yw),      0.0],
+        [2*(xy + zw),        w*w - xx + yy - zz, 2*(yz - xw),     0.0],
+        [2*(xz - yw),        2*(yz + xw),       w*w - xx - yy + zz, 0.0],
+        [0.0,                0.0,               0.0,               1.0],
     ], dtype=float)
 
 
-class PIDController:
-    def __init__(self, Kp, Ki, Kd, imax=None, deadband=0.0):
-        self.Kp = np.array(Kp, dtype=float)
-        self.Ki = np.array(Ki, dtype=float)
-        self.Kd = np.array(Kd, dtype=float)
-        self.imax = np.array(imax, dtype=float) if imax is not None else None
-        self.deadband = float(deadband)
-        self.reset()
-
-    def reset(self):
-        self._err_int = np.zeros_like(self.Kp)
-        self._last_err = np.zeros_like(self.Kp)
-
-    def update(self, error, dt):
-        err = error.copy()
-        for i in range(len(err)):
-            if abs(err[i]) < self.deadband:
-                err[i] = 0.0
-
-        if dt > 0 and np.any(self.Ki != 0.0):
-            self._err_int += err * dt
-            if self.imax is not None:
-                if self.imax.ndim == 0:
-                    max_i = abs(self.imax)
-                    self._err_int = np.clip(self._err_int, -max_i, max_i)
-                else:
-                    # elementwise clamp
-                    self._err_int = np.clip(self._err_int, -self.imax, self.imax)
-
-        derr = (err - self._last_err) / dt if dt > 0 else np.zeros_like(err)
-        self._last_err = err.copy()
-
-        p_term = self.Kp * err
-        i_term = self.Ki * self._err_int
-        d_term = self.Kd * derr
-
-        return p_term + i_term + d_term
-
-
-class CartesianVelocityServo(Node):
+class XArmVelocityController(Node):
     def __init__(self):
-        super().__init__('cartesian_velocity_servo')
+        super().__init__('xarm_velocity_controller')
 
-        # 1) Frames, rate, tolerance
-        self.declare_parameter('goal_frame', 'link_base')
-        self.declare_parameter('tcp_frame', 'link_tcp')
-        self.declare_parameter('update_rate', 50.0)
-        self.declare_parameter('tolerance', 0.01)
+        # hard-coded IP
+        ip = '192.168.1.239'
+        self.get_logger().info(f'🚀 Connecting to xArm at {ip}…')
+        self.arm = XArmAPI(ip)
+        self.arm.motion_enable(True)
+        self.get_logger().info('✅ Motion enabled')
 
-        # 2) PID gains for linear motion
-        Kp_lin = self.declare_parameter('Kp_lin', [3.0, 3.0, 3.0]).value
-        Ki_lin = self.declare_parameter('Ki_lin', [0.3, 0.3, 0.3]).value
-        Kd_lin = self.declare_parameter('Kd_lin', [0.6, 0.6, 0.6]).value
-        imax_lin = self.declare_parameter('imax_lin', [0.1, 0.1, 0.1]).value
-        dead_lin = self.declare_parameter('deadband_lin', 0.002).value
-        self.pid_lin = PIDController(Kp_lin, Ki_lin, Kd_lin, imax=imax_lin, deadband=dead_lin)
+        # Cartesian-velocity mode
+        self.arm.set_mode(5)
+        self.arm.set_state(0)
+        time.sleep(1)
+        self.get_logger().info('🎯 Cartesian-velocity mode enabled')
 
-        # 3) PID gains for angular motion
-        Kp_ang = self.declare_parameter('Kp_ang', [3.0, 3.0, 3.0]).value
-        Ki_ang = self.declare_parameter('Ki_ang', [0.3, 0.3, 0.3]).value
-        Kd_ang = self.declare_parameter('Kd_ang', [0.6, 0.6, 0.6]).value
-        imax_ang = self.declare_parameter('imax_ang', [0.1, 0.1, 0.1]).value
-        dead_ang = self.declare_parameter('deadband_ang', 0.01).value
-        self.pid_ang = PIDController(Kp_ang, Ki_ang, Kd_ang, imax=imax_ang, deadband=dead_ang)
-
-        # 4) Maximum velocity caps (linear [m/s], angular [rad/s])
-        self.declare_parameter('max_linear_vel', 1.0)
-        self.declare_parameter('max_angular_vel', 1.0)
-        self.max_lin = float(self.get_parameter('max_linear_vel').value)
-        self.max_ang = float(self.get_parameter('max_angular_vel').value)
-
-        # 5) Effort‐threshold (if joint2, 3, or 4 > this, stop immediately)
-        self.declare_parameter('effort_threshold', 1.0)
-        self.effort_threshold = float(self.get_parameter('effort_threshold').value)
-
-        # 6) Fixed goal pose
-        self.goal = PoseStamped()
-        self.goal.header.frame_id = self.get_parameter('goal_frame').value
-        self.goal.pose.position.x = 0.4
-        self.goal.pose.position.y = 0.0
-        self.goal.pose.position.z = 0.15
-        self.goal_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
-        self.tolerance = self.get_parameter('tolerance').value
-
-        # 7) TF listener
+        # TF listener
         self.tf_buffer = tf2_ros.Buffer()
         tf2_ros.TransformListener(self.tf_buffer, self)
 
-        # 8) Publisher for Cartesian velocity
-        self.pub = self.create_publisher(TwistStamped, '/servo_server/delta_twist_cmds', 10)
+        # frames
+        self.base_frame = 'link_base'
+        self.ee_frame = 'link_tcp'
 
-        # 9) Subscription for JointState to collect efforts + instant threshold check
-        self.latest_eff = {'joint2': 0.0, 'joint3': 0.0, 'joint4': 0.0}
-        self.effort_data = {
-            'time': [],
-            'joint1': [],
-            'joint2': [],
-            'joint3': [],
-            'joint4': [],
-            'joint5': []
-        }
-        self.joint_sub = self.create_subscription(
-            JointState,
-            '/joint_states',
-            self.joint_states_callback,
-            10
-        )
+        # target pose
+        self.ready_pose = Pose()
+        self.ready_pose.position.x = 0.4
+        self.ready_pose.position.y = 0.0
+        self.ready_pose.position.z = 0.015
+        self.ready_pose.orientation.x = 1.0
+        self.ready_pose.orientation.y = 0.0
+        self.ready_pose.orientation.z = 0.0
+        self.ready_pose.orientation.w = 0.0
 
-        # 10) Timer for control loop
-        rate = self.get_parameter('update_rate').value
-        self._last_time = self.get_clock().now().nanoseconds * 1e-9
-        self.create_timer(1.0 / rate, self.control_loop)
+        # control parameters
+        self.rate_hz = 20.0
+        self.pos_thresh_m = 0.025            # 2 cm
 
-        self.get_logger().info('✅ CartesianVelocityServo ready')
+        # distinct effort thresholds
+        self.probe_effort_threshold   = -5.5   # for entering retract after probing
+        self.retract_effort_threshold = -7.0   # for finishing retract
 
-    def joint_states_callback(self, msg: JointState):
-        """
-        Whenever a JointState arrives:
-         - extract efforts for joint1..joint5,
-         - append them to self.effort_data (for CSV later),
-         - update self.latest_eff for joint2,3,4,
-         - if joint2/3/4 > threshold, stop motion immediately.
-        """
-        now = self.get_clock().now().nanoseconds * 1e-9
+        self.probe_speed = 30.0             # mm/s probing
 
-        # Look for indices of joint names in this message
-        effs = {'joint1': None, 'joint2': None, 'joint3': None, 'joint4': None, 'joint5': None}
-        for i, name in enumerate(msg.name):
-            if name in effs:
-                effs[name] = msg.effort[i]
+        # retract gain & caps
+        self.retract_kp = 10.0              # mm/s per Amp above threshold
+        self.min_retract_speed = 5.0        # mm/s
+        self.max_retract_speed = 50.0       # mm/s
 
-        # Only log when all five are present
-        if all(effs[j] is not None for j in effs):
-            self.effort_data['time'].append(now)
-            self.effort_data['joint1'].append(effs['joint1'])
-            self.effort_data['joint2'].append(effs['joint2'])
-            self.effort_data['joint3'].append(effs['joint3'])
-            self.effort_data['joint4'].append(effs['joint4'])
-            self.effort_data['joint5'].append(effs['joint5'])
+        # stuck detection params
+        self.stuck_epsilon = 0.0005         # 0.5 mm
+        self.stuck_count = 0
+        self.stuck_count_goal = int(0.5*self.rate_hz)
 
-            # Update latest efforts for 2,3,4
-            self.latest_eff['joint2'] = effs['joint2']
-            self.latest_eff['joint3'] = effs['joint3']
-            self.latest_eff['joint4'] = effs['joint4']
+        # retract stability check
+        self.stable_duration = 5.0          # seconds to confirm stability
+        self.stable_thresh   = 0.5          # A allowable change per sample
 
-            # Instant threshold check:
-            if (
-                    effs['joint3'] > self.effort_threshold
-                    or effs['joint4'] > self.effort_threshold):
-                self.get_logger().warn(
-                    f"⚠️ Effort threshold exceeded: "
-                    f" joint2={effs['joint2']:.2f}, "
-                    f" joint3={effs['joint3']:.2f}, "
-                    f" joint4={effs['joint4']:.2f}. "
-                    f"Stopping motion instantly."
-                )
-                # Publish zero velocity, write CSV, then shutdown immediately
-                self._publish_zero()
-                self._write_efforts_to_csv()
-                rclpy.shutdown()
-                return
+        # stages
+        self.stage = 'goto'
 
-    def get_current_transform(self):
-        try:
-            t = self.tf_buffer.lookup_transform(
-                self.goal.header.frame_id,
-                self.get_parameter('tcp_frame').value,
-                rclpy.time.Time())
-        except Exception as e:
-            self.get_logger().warn(f"TF lookup failed: {e}")
-            return None, None
-
-        pos = np.array([
-            t.transform.translation.x,
-            t.transform.translation.y,
-            t.transform.translation.z,
-        ], dtype=float)
-
-        rot = np.array([
-            t.transform.rotation.x,
-            t.transform.rotation.y,
-            t.transform.rotation.z,
-            t.transform.rotation.w,
-        ], dtype=float)
-
-        return pos, rot
+        threading.Thread(target=self.control_loop, daemon=True).start()
 
     def control_loop(self):
-        # 1) Compute dt
-        now = self.get_clock().now().nanoseconds * 1e-9
-        dt = now - self._last_time
-        if dt <= 0:
+        rate = self.create_rate(self.rate_hz)
+        self.get_logger().info('🔄 Starting control loop…')
+        while rclpy.ok() and self.stage != 'done':
+            try:
+                tf = self.tf_buffer.lookup_transform(
+                    self.base_frame, self.ee_frame, rclpy.time.Time())
+            except TransformException as e:
+                self.get_logger().warn(f'⚠️ TF lookup failed: {e}')
+                rate.sleep()
+                continue
+
+            cx, cy, cz = (tf.transform.translation.x,
+                          tf.transform.translation.y,
+                          tf.transform.translation.z)
+
+            if self.stage == 'goto':
+                self._goto_pose(cx, cy, cz)
+            elif self.stage == 'probe':
+                self._probe_down(cz)
+            elif self.stage == 'retract':
+                self._retract_sequence()
+
+            rate.sleep()
+
+        self.get_logger().info('✅ All sequences complete.')
+
+    def _goto_pose(self, cx, cy, cz):
+        tx, ty, tz = (self.ready_pose.position.x,
+                      self.ready_pose.position.y,
+                      self.ready_pose.position.z)
+        dx, dy, dz = tx-cx, ty-cy, tz-cz
+        vx, vy, vz = [np.clip(1000.0*d, -100, 100) for d in (dx, dy, dz)]
+        self.arm.vc_set_cartesian_velocity([vx, vy, vz, 0, 0, 0])
+        self.get_logger().info(f'📍 Goto err(m): [{dx:.4f},{dy:.4f},{dz:.4f}]')
+        if abs(dx)<self.pos_thresh_m and abs(dy)<self.pos_thresh_m and abs(dz)<self.pos_thresh_m:
+            self.get_logger().info('🎯 Pose reached → probe.')
+            self.stage = 'probe'
+            self.last_z = cz
+            self.stuck_count = 0
+
+    def _probe_down(self, cz):
+        self.arm.vc_set_cartesian_velocity([0,0,-self.probe_speed,0,0,0])
+        self.get_logger().info(f'⬇️ Probing @ {self.probe_speed}mm/s, Z={cz:.4f}m')
+
+        self.arm.set_report_tau_or_i(1)
+        _, efforts = self.arm.get_joints_torque()
+        j3 = efforts[2]
+        cond = (j3 > self.probe_effort_threshold)
+        self.get_logger().info(f'🔋 J3={j3:.2f}A, probe_thr={self.probe_effort_threshold}A, cond={cond}')
+
+        if cond:
+            self.arm.vc_set_cartesian_velocity([0]*6)
+            self.get_logger().info('⚠️ Probe thr met → retract.')
+            self.stage = 'retract'
             return
-        self._last_time = now
 
-        # 2) Get current TCP pose
-        cur_pos, cur_quat = self.get_current_transform()
-        if cur_pos is None:
-            return
-
-        # 3) Position error
-        tgt_pos = np.array([
-            self.goal.pose.position.x,
-            self.goal.pose.position.y,
-            self.goal.pose.position.z,
-        ], dtype=float)
-        err_pos = tgt_pos - cur_pos
-
-        # 4) Orientation error (axis–angle)
-        q_err = quaternion_multiply(self.goal_quat, quaternion_inverse(cur_quat))
-        q_err /= np.linalg.norm(q_err)  # normalize
-        angle = 2.0 * np.arccos(np.clip(q_err[3], -1.0, 1.0))
-        if abs(angle) < 1e-6:
-            axis = np.zeros(3)
+        if abs(cz-self.last_z)<self.stuck_epsilon:
+            self.stuck_count+=1
         else:
-            axis = q_err[:3] / np.sin(angle / 2.0)
-        err_ang = axis * angle
+            self.stuck_count=0
+        self.last_z=cz
 
-        # 5) Log the errors
-        self.get_logger().info(
-            f"Position error = [x: {err_pos[0]:.4f}, y: {err_pos[1]:.4f}, z: {err_pos[2]:.4f}]"
-        )
-        self.get_logger().info(
-            f"Orientation error = [rx: {err_ang[0]:.4f}, ry: {err_ang[1]:.4f}, rz: {err_ang[2]:.4f}]"
-        )
+        if self.stuck_count>=self.stuck_count_goal:
+            self.arm.vc_set_cartesian_velocity([0]*6)
+            self.get_logger().info('⚠️ Stuck → retract.')
+            self.stage='retract'
 
-        # 6) Check if goal reached
-        if np.linalg.norm(err_pos) < self.tolerance and np.linalg.norm(err_ang) < self.tolerance:
-            self.get_logger().info('✅ Goal reached')
-            self._publish_zero()
-            self._write_efforts_to_csv()
-            rclpy.shutdown()
-            return
+    def _retract_sequence(self):
+        self.get_logger().info('🔼 Starting smooth retract...')
+        prev_j3 = None
+        stable_start = None
 
-        # 7) PID outputs
-        vel_lin = self.pid_lin.update(err_pos, dt)   # shape (3,)
-        vel_ang = self.pid_ang.update(err_ang, dt)   # shape (3,)
+        while rclpy.ok():
+            self.arm.set_report_tau_or_i(1)
+            _, efforts = self.arm.get_joints_torque()
+            j3 = efforts[2]
+            self.get_logger().info(f'🔋 J3 retract={j3:.2f}A')
 
-        # 8) Cap each axis
-        vel_lin = np.clip(vel_lin, -self.max_lin, self.max_lin)
-        vel_ang = np.clip(vel_ang, -self.max_ang, self.max_ang)
+            # finished when back under retract threshold, after stability window
+            if j3 <= self.retract_effort_threshold:
+                if stable_start is None:
+                    stable_start = time.time()
+                elif time.time() - stable_start >= self.stable_duration:
+                    break
+            else:
+                stable_start = None
+                # speed ∝ (j3 - threshold)
+                error = j3 - self.retract_effort_threshold
+                speed = self.retract_kp * error
+                speed = np.clip(speed, self.min_retract_speed, self.max_retract_speed)
+                self.arm.vc_set_cartesian_velocity([0,0,speed,0,0,0])
+                self.get_logger().info(f'🔼 Speed={speed:.1f}mm/s')
 
-        # 9) Publish the command
-        twist = TwistStamped()
-        twist.header.stamp = self.get_clock().now().to_msg()
-        twist.twist.linear.x  = float(vel_lin[0])
-        twist.twist.linear.y  = float(vel_lin[1])
-        twist.twist.linear.z  = float(vel_lin[2])
-        twist.twist.angular.x = float(vel_ang[0])
-        twist.twist.angular.y = float(vel_ang[1])
-        twist.twist.angular.z = float(vel_ang[2])
-        self.pub.publish(twist)
+            time.sleep(1.0/self.rate_hz)
 
-    def _publish_zero(self):
-        zero = TwistStamped()
-        zero.header.stamp = self.get_clock().now().to_msg()
-        self.pub.publish(zero)
-
-    def _write_efforts_to_csv(self):
-        """
-        Write collected effort data into a CSV file.
-        """
-        # Adjust this path to wherever you like
-        csv_path = '/home/adip/workspaces/dev_ws/src/xarm_ros2/velocity_control/EffortCSV/efforts.csv'
-        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-
-        with open(csv_path, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            # Header
-            writer.writerow(['time', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5'])
-            # Rows
-            for i in range(len(self.effort_data['time'])):
-                row = [
-                    self.effort_data['time'][i],
-                    self.effort_data['joint1'][i],
-                    self.effort_data['joint2'][i],
-                    self.effort_data['joint3'][i],
-                    self.effort_data['joint4'][i],
-                    self.effort_data['joint5'][i],
-                ]
-                writer.writerow(row)
-        self.get_logger().info(f"📈 Effort data written to {csv_path}")
+        self.arm.vc_set_cartesian_velocity([0]*6)
+        self.get_logger().info('✅ Retract complete.')
+        self.stage='done'
 
 
-def main():
-    rclpy.init()
-    node = CartesianVelocityServo()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+def main(args=None):
+    rclpy.init(args=args)
+    node = XArmVelocityController()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.arm.vc_set_cartesian_velocity([0]*6)
+        node.destroy_node()
+        rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__=='__main__':
     main()

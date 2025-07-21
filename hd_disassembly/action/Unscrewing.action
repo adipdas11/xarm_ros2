@@ -1,0 +1,11 @@
+# Goal
+float64 rotation_speed       # Unscrewing speed (rad/s)
+float64 effort_threshold     # Effort stabilization threshold (Nm)
+---
+# Result
+bool success                 # True if screw fully removed
+string message               # Status or error description
+---
+# Feedback
+float64 current_effort       # Real‐time effort on joint_3 (Nm)
+float64 delta_height         # Height change since goal start (m)

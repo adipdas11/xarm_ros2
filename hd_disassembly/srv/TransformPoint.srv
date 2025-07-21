@@ -1,0 +1,5 @@
+# Request
+geometry_msgs/PointStamped point_in    # Point in camera_color_optical_frame
+---
+# Response
+geometry_msgs/PointStamped point_out   # Point in link_base
