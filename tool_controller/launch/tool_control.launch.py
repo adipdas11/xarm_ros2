@@ -4,7 +4,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    # Declare launch arguments for serial port and baud rate
+    # ---- existing args ----
     port_arg = DeclareLaunchArgument(
         'port',
         default_value='/dev/ttyACM0',
@@ -16,17 +16,38 @@ def generate_launch_description():
         description='Baud rate for the serial connection'
     )
 
+    # ---- new: camera arg ----
+    camera_index_arg = DeclareLaunchArgument(
+        'camera_index',
+        default_value='10',
+        description='OpenCV camera index (integer, e.g. 6, 10)'
+    )
+
     return LaunchDescription([
         port_arg,
         baud_arg,
+        camera_index_arg,
+
+        # Tool control node (kept as you wrote it)
         Node(
-            package='tool_controller', 
-            executable='tool_control.py',
+            package='tool_controller',
+            executable='tool_control.py',   # if you have a console_script, use 'tool_control' instead
             name='tool_control',
             output='screen',
-            parameters=[
-                {'port': LaunchConfiguration('port'),
-                 'baud': LaunchConfiguration('baud')}
-            ]
-        )
+            parameters=[{
+                'port': LaunchConfiguration('port'),
+                'baud': LaunchConfiguration('baud'),
+            }]
+        ),
+
+        # Camera publisher node (publishes to /tool_camera, RELIABLE QoS)
+        Node(
+            package='tool_controller',
+            executable='tool_camera.py',       # console_scripts entry point name
+            name='tool_camera',
+            output='screen',
+            parameters=[{
+                'camera_index': LaunchConfiguration('camera_index'),
+            }]
+        ),
     ])

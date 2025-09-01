@@ -20,6 +20,7 @@ set(action_files
 set(srv_files
   "srv/TransformPoint.srv"
   "srv/GetSequence.srv"
+  "srv/GetPlan.srv"
 )
 
 # List your .msg files:
@@ -39,7 +40,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 # 3) If you have C++ executables, link against the generated code:
 install(PROGRAMS
+  src/ready_pose.py
   src/vision_detector_node.py
+  src/vision_detector_node_detr.py
+  src/vision_detector_yolo_sahi.py
   src/transform_node.py
   src/planner_node.py
   src/marker_publisher_node.py

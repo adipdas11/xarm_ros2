@@ -46,7 +46,7 @@ arm.set_state(state=0)
 arm.move_gohome(wait=True)
 # arm.set_position(x=400, y=-50, z=150, roll=-180, pitch=0, yaw=0, speed=60, is_radian=False, wait=True)
 
-arm.set_position(x=400, y=-00, z=150, roll=3.14, pitch=0, yaw=0, speed=60, is_radian=True, wait=True)
+arm.set_position(x=385.6, y=342.4, z=200, roll=3.14, pitch=0, yaw=0, speed=60, is_radian=True, wait=True)
 
 # set mode: cartesian online trajectory planning mode
 # the running command will be interrupted when the next command is received

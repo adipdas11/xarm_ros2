@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, TimerAction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -55,6 +55,23 @@ def generate_launch_description():
         condition=IfCondition(PythonExpression(["'", mode, "' == 'real'"]))
     )
 
+    # RealSense camera (only when mode == real)
+    realsense_camera = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('realsense2_camera'),
+                'launch',
+                'rs_launch.py'
+            ])
+        ),
+        launch_arguments={
+            'depth_module.depth_profile': '1280x720x30',
+            'pointcloud.enable': 'true',
+            'publish_tf': 'false',
+        }.items(),
+        condition=IfCondition(PythonExpression(["'", mode, "' == 'real'"]))
+    )
+
     # Tool controller inclusion, conditional on enable_tool == true
     tool_controller = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -70,11 +87,17 @@ def generate_launch_description():
         }.items(),
         condition=IfCondition(enable_tool)
     )
-    
-    ready_pose = Node(
-        package='disassembly_v2',
-        executable='ready_pose_node.py',
-        output='screen'
+
+    # Ready pose node (delayed by 5 seconds)
+    ready_pose_delayed = TimerAction(
+        period=5.0,
+        actions=[
+            Node(
+                package='hd_disassembly',
+                executable='ready_pose.py',
+                output='screen'
+            )
+        ]
     )
 
     return LaunchDescription([
@@ -83,6 +106,7 @@ def generate_launch_description():
         isaac_sim_joint_states,
         fake_moveit,
         real_moveit,
+        realsense_camera,
         tool_controller,
-        ready_pose
+        ready_pose_delayed,
     ])

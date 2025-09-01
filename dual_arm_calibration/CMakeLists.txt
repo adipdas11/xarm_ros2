@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(tool_controller)
+project(dual_arm_calibration)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -14,14 +14,10 @@ find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
 
 install(PROGRAMS
-  scripts/tool_control.py
-  scripts/tool_camera.py
+  src/check_calibration.py
+  src/single_arm_calibration.py
+  src/ros_aruco_detect.py
   DESTINATION lib/${PROJECT_NAME}
-)
-
-install(DIRECTORY
-  launch 
-  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

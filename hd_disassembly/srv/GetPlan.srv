@@ -1,0 +1,11 @@
+# Request
+string mode           # "snapshot" (default) or "live"
+float32 dedup_tol_m   # spatial bin size, e.g. 0.01 = 1 cm (0 → use node param)
+
+---
+# Response
+bool ok
+string plan_json      # JSON array of objects:
+                      # [{"key":"screw:8:-8:31","label":"screw","arm":"tool",
+                      #   "priority":0,"approx":{"x":0.079,"y":-0.078,"z":0.309}}, ...]
+string message        # optional info
