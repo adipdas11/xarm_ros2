@@ -26,7 +26,7 @@ def generate_launch_description():
             'dof_1': '6',
             'robot_type_1': 'uf850',
             'attach_to_1': 'world',
-            'attach_xyz_1': '-0.03 -0.785 0.0',
+            'attach_xyz_1': '-0.013 -0.75 -0.03',
             'attach_rpy_1': '0 0 0',
             'add_vacuum_gripper_1': 'true',
 

@@ -12,7 +12,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 # ---- defaults (can be adjusted if needed) ----
-DEFAULT_CAMERA_INDEX = 6
+DEFAULT_CAMERA_INDEX = 4
 WIDTH, HEIGHT, FPS = 640, 480, 30
 FOURCC = "MJPG"           # device may ignore; we log negotiated FOURCC
 FRAME_ID = "tool_camera"

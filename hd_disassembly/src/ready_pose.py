@@ -27,12 +27,12 @@ class DualArmHomeThenStart(Node):
         self.acc   = 2000.0  # mm/s^2
 
         # RIGHT start pose
-        self.R_start_xyz_m = (0.35, -0.38, 0.1)
+        self.R_start_xyz_m = (0.37, -0.38, 0.1)
         R_qx, R_qy, R_qz, R_qw = 1.0, 0.0, 0.0, 0.0
         self.R_start_rpy_deg = tuple(math.degrees(a) for a in quat_to_rpy(R_qx, R_qy, R_qz, R_qw))
 
         # LEFT start pose
-        self.L_start_xyz_m = (0.4, 0.0, 0.4)
+        self.L_start_xyz_m = (0.4, 0.0, 0.2)
         L_qx, L_qy, L_qz, L_qw = 1.0, 0.0, 0.0, 0.0
         self.L_start_rpy_deg = tuple(math.degrees(a) for a in quat_to_rpy(L_qx, L_qy, L_qz, L_qw))
 
@@ -54,8 +54,8 @@ class DualArmHomeThenStart(Node):
         self._prepare_arm(self.L_arm, 'L')
 
         self.get_logger().info('🏠 Sending BOTH arms to HOME…')
-        self._go_home(self.R_arm, 'R')
-        self._go_home(self.L_arm, 'L')
+        # self._go_home(self.R_arm, 'R')
+        # self._go_home(self.L_arm, 'L')
 
         # Move to start poses
         self._move_to_start(self.R_arm, 'R', self.R_start_xyz_m, self.R_start_rpy_deg)

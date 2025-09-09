@@ -32,7 +32,8 @@ else:
         parser.read('../robot.conf')
         ip = parser.get('xArm', 'ip')
     except:
-        ip = input('Please input the xArm ip address:')
+        # ip = input('Please input the xArm ip address:')
+        ip = '192.168.1.239'
         if not ip:
             print('input error, exit')
             sys.exit(1)
@@ -43,10 +44,10 @@ arm.motion_enable(enable=True)
 arm.set_mode(0)
 arm.set_state(state=0)
 
-arm.move_gohome(wait=True)
+# arm.move_gohome(wait=True)
 # arm.set_position(x=400, y=-50, z=150, roll=-180, pitch=0, yaw=0, speed=60, is_radian=False, wait=True)
 
-arm.set_position(x=385.6, y=342.4, z=200, roll=3.14, pitch=0, yaw=0, speed=60, is_radian=True, wait=True)
+arm.set_position(x=20, y=0, z=0, roll=0, pitch=0, yaw=0, speed=3, is_radian=True, wait=True, relative=True)
 
 # set mode: cartesian online trajectory planning mode
 # the running command will be interrupted when the next command is received

@@ -87,7 +87,7 @@ class DualArmCalibrationFSM(Node):
         self.declare_parameter('R.camera_optical_frame', 'R_camera_color_optical_frame')
         self.declare_parameter('R.tcp_speed', 100.0)     # mm/s
         self.declare_parameter('R.tcp_acc',   2000.0)    # mm/s^2
-        self.declare_parameter('R.offset_mm', 50.0)      # stop 5 cm above
+        self.declare_parameter('R.offset_mm', 40.0)      # stop 5 cm above
         # 👉 Software bias (XYZ in mm, RPY in deg)
         self.declare_parameter('R.bias_xyz_mm', [0.6, 0.0, 0.0])
         self.declare_parameter('R.bias_rpy_deg', [0.0, 0.0, 0.0])
@@ -98,7 +98,7 @@ class DualArmCalibrationFSM(Node):
         self.declare_parameter('L.tcp_frame',  'L_link_tcp')
         self.declare_parameter('L.tcp_speed', 100.0)
         self.declare_parameter('L.tcp_acc',   2000.0)
-        self.declare_parameter('L.offset_mm', 80.0)
+        self.declare_parameter('L.offset_mm', 60.0)
         # 👉 Software bias (XYZ in mm, RPY in deg)
         self.declare_parameter('L.bias_xyz_mm', [0.0, 0.0, 0.0])
         self.declare_parameter('L.bias_rpy_deg', [0.0, 0.0, 0.0])

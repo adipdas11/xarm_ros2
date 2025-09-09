@@ -39,8 +39,8 @@ class ArucoDetectorNode(Node):
         # Marker length in meters (100 mm default)
         self.declare_parameter('marker_length_m', 0.10)
         self.declare_parameter('depth_topic', '/camera/camera/depth/image_rect_raw')
-        self.declare_parameter('camera_frame', 'camera_color_optical_frame')
-        self.declare_parameter('base_frame', 'link_base')
+        self.declare_parameter('camera_frame', 'R_camera_color_optical_frame')
+        self.declare_parameter('base_frame', 'R_link_base')
 
         image_topic = self.get_parameter('image_topic').get_parameter_value().string_value
         camera_info_topic = self.get_parameter('camera_info_topic').get_parameter_value().string_value

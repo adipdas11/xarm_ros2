@@ -50,7 +50,7 @@ class VisionRFDetrNode(Node):
         self.conf_thres   = float(vcfg.get('conf_threshold', 0.30))
 
         self.keep_names   = set(vcfg.get('class_names', []) or [])
-        self.ignore_names = set(vcfg.get('ignore_names', ['screw']))
+        self.ignore_names = set(vcfg.get('ignore_names', ['screw_head']))
 
         self.bridge = CvBridge()
         self.K = None

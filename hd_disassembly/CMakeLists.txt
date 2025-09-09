@@ -44,6 +44,7 @@ install(PROGRAMS
   src/vision_detector_node.py
   src/vision_detector_node_detr.py
   src/vision_detector_yolo_sahi.py
+  src/tool_cam_yolo_node.py
   src/transform_node.py
   src/planner_node.py
   src/marker_publisher_node.py

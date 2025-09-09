@@ -34,7 +34,7 @@ def generate_launch_description():
             'attach_to_2': 'world',
             'attach_xyz_2': '0 1 0.1045',
             'attach_rpy_2': '0 0 0',
-            'add_realsense_d435i_2': 'true',
+            # 'add_realsense_d435i_2': 'true',
             'add_other_geometry_2':'true',  
             'geometry_type_2':'mesh',   
             'geometry_mesh_filename_2':'ElectricScrew_EndEffector.stl',   

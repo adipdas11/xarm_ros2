@@ -4,11 +4,9 @@ vision:
   coco_json_path: "/home/adip/workspaces/image_processing_ws/Model_Training/rfdetr/HDD-1/test/_annotations.coco.json"
   conf_threshold: 0.30                  # detection confidence
   iou_nms: 0.45  
-  ignore_classes: ["screw"]
-  sahi:
-    enabled: true
-    tile: 640                           # tile size (pixels)
-    overlap: 0.2                        # slice overlap (0..1)
+  # ignore_classes: ["screw"]
+  ignore_classes: ["label"]
+
   camera:
     rgb_topic:    "/camera/camera/color/image_raw"
     depth_topic:  "/camera/camera/depth/image_rect_raw"     # optional (debug)
@@ -16,34 +14,31 @@ vision:
     cloud_topic:  "/camera/camera/depth/color/points"       # used by vision node
     frame_id:     "R_camera_color_optical_frame"            # RIGHT camera (from your calibration)
 
-robot:
-  # IPs kept at top-level for compatibility with robot_control_node.py
-  tool_ip:  "192.168.1.239"   # RIGHT arm (unscrewing tool)
-  manip_ip: "192.168.1.195"   # LEFT arm (manipulation / vacuum)
+  tool_camera:
+    # Used by control node Step 8 for tool-head alignment
+    rgb_topic: /tool_camera
+    model_path: /home/adip/workspaces/image_processing_ws/Model_Training/yolov11_Closeup/runs/segment/train/weights/best.pt
 
-  # Common motion settings (meters / m/s / Nm)
-  stop_height:    0.10        # hover height above target (default for both arms)
+robot:
+  # Common motion settings (kept because control node reads probing speed & thresholds)
+  stop_height:    0.10        # m (generic hover height; may be overridden in code)
   probing_speed:  0.0255      # m/s downward during probing
-  unscrew_speed:  0.10        # m/s (not heavily used but kept for completeness)
+  unscrew_speed:  0.10        # m/s (not used now but harmless to keep)
   effort_threshold:
     probing:  -6.0            # Nm on joint_3 to detect contact
     unscrew:  -6.0            # Nm stabilization threshold during unscrew
 
-  # Per-arm poses + optional per-arm overrides (if omitted, fall back to common)
-  tool:    # RIGHT
+  # Per-arm poses + IPs
+  tool:
     ip: "192.168.1.239"
-    ideal_pose:                         # “home/ideal” for parking
+    ideal_pose:
       position:    { x: 0.40, y: 0.00, z: 0.20 }
       orientation: { x: 1.0,  y: 0.0,  z: 0.0,  w: 0.0 }
-    start_pose:                         # from your first script
-      position:    { x: 0.35, y: -0.38, z: 0.10 }
+    start_pose:
+      position:    { x: 0.37, y: -0.38, z: 0.1 }
       orientation: { x: 1.0,  y:  0.0,  z: 0.0,  w: 0.0 }
-    # Optional overrides (uncomment to use):
-    # stop_height:   0.08               # m
-    # probing_speed: 0.0255             # m/s
-    # unscrew_speed: 0.10               # m/s
 
-  manip:  # LEFT
+  manip:
     ip: "192.168.1.195"
     ideal_pose:
       position:    { x: 0.40, y: 0.00, z: 0.40 }
@@ -51,9 +46,10 @@ robot:
     start_pose:
       position:    { x: 0.40, y:  0.30, z: 0.40 }
       orientation: { x: 1.0,  y:  0.0,  z: 0.0,  w: 0.0 }
-    # Optional overrides (uncomment to use):
-    # stop_height:   0.10               # m
-    # probing_speed: 0.0255             # m/s
+
+  # Top-level IPs kept for backward-compat (harmless if unused)
+  tool_ip:  "192.168.1.239"
+  manip_ip: "192.168.1.195"
 
 tf:
   source_frame:        "R_camera_color_optical_frame"
@@ -64,17 +60,24 @@ tracker:
   max_lost:      5
   iou_threshold: 0.3
 
-marker_publisher:
-  marker_lifetime: 0.5
-
 disassembly:
-  part_priority:       # lower number = handled earlier
-    screw_head:   0
-    lid:     1
-    pcb:     2
-    default: 3
+  part_priority:
+    screw_head: 0
+    screw: 0
+    lid:        1
+    pcb:        2
+    default:    3
   arm_assign:
-    screw_head:   tool
-    lid:     manip
-    pcb:     manip
-    default: manip
+    screw_head: tool
+    screw: tool
+    actuator axis: tool
+    actuator arm: manip
+    lid:        manip
+    magnet:     manip
+    platter:    manip
+    pcb connector: manip
+    platter holder: manip
+    platter protector: manip
+    pcb:        manip
+    case:       manip
+    default:    manip

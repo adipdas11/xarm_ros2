@@ -87,6 +87,19 @@ def generate_launch_description():
         }.items(),
         condition=IfCondition(enable_tool)
     )
+    
+    handeye_publisher = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('easy_handeye2'),
+                'launch',
+                'publish.launch.py'
+            ])
+        ),
+        launch_arguments={
+            'name': 'eih_realsense_1'
+        }.items()
+    )
 
     # Ready pose node (delayed by 5 seconds)
     ready_pose_delayed = TimerAction(
@@ -108,5 +121,6 @@ def generate_launch_description():
         real_moveit,
         realsense_camera,
         tool_controller,
+        # handeye_publisher,
         ready_pose_delayed,
     ])
